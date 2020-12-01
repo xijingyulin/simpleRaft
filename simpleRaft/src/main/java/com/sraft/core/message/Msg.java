@@ -25,6 +25,10 @@ public class Msg {
 	public static final int TYPE_CLIENT_LOGIN = 5;
 	public static final int TYPE_REPLY_CLIENT_LOGIN = 6;
 
+	public static final int ERR_CODE_LOGIN_FOLLOWER = 1;
+	public static final int ERR_CODE_LOGIN_CANDIDATE = 2;
+	public static final int ERR_CODE_LOGIN_LEADER_NO_MAJOR = 3;
+
 	public Msg() {
 
 	}

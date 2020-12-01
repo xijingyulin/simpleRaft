@@ -18,7 +18,6 @@ public abstract class Workder implements IFlowWorker {
 	 * 因为任期不一致，选举超时等消息，需要转换角色，避免在停止角色后继续处理消息，暂时将消息放到队列中
 	 */
 	private boolean enable = false;
-	private String LOCK_WORK = new String("LOCK_WORK");
 
 	protected AbstractRoles role = null;
 
@@ -59,13 +58,13 @@ public abstract class Workder implements IFlowWorker {
 	}
 
 	public boolean isEnable() {
-		synchronized (LOCK_WORK) {
+		synchronized (Workder.class) {
 			return enable;
 		}
 	}
 
 	public void setEnable(boolean enable) {
-		synchronized (LOCK_WORK) {
+		synchronized (Workder.class) {
 			this.enable = enable;
 		}
 	}
@@ -76,11 +75,11 @@ public abstract class Workder implements IFlowWorker {
 	 * @param fromTerm
 	 * @return
 	 */
-//	public boolean isLargeTerm(long fromTerm) {
-//		if (fromTerm > role.getCurrentTerm()) {
-//			return true;
-//		} else {
-//			return false;
-//		}
-//	}
+	//	public boolean isLargeTerm(long fromTerm) {
+	//		if (fromTerm > role.getCurrentTerm()) {
+	//			return true;
+	//		} else {
+	//			return false;
+	//		}
+	//	}
 }

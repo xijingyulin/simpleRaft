@@ -6,6 +6,8 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sraft.client.message.LoginMsg;
+import com.sraft.client.message.ReplyLoginMsg;
 import com.sraft.common.flow.FlowHeader;
 import com.sraft.common.flow.NoFlowLineException;
 import com.sraft.core.message.HeartbeatMsg;
@@ -25,38 +27,33 @@ public abstract class AbstractHandler extends ChannelHandlerAdapter {
 		List<Object> params = new ArrayList<Object>();
 		params.add(ctx);
 		params.add(msg);
+		try {
+			if (msg instanceof RequestVoteMsg) {
+				LOG.info("接收到【请求投票】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.REQUEST_VOTE_WORKER, params);
+			} else if (msg instanceof ReplyRequestVoteMsg) {
+				LOG.info("接收到【回复请求投票】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.REQUEST_VOTE_WORKER, params);
+			} else if (msg instanceof HeartbeatMsg) {
+				//LOG.info("接收到【心跳】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.HEARTBEAT_WORKER, params);
+			} else if (msg instanceof ReplyHeartbeatMsg) {
+				//LOG.info("接收到【回复心跳】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.HEARTBEAT_WORKER, params);
+			} else if (msg instanceof LoginMsg) {
+				LOG.info("接收到【登录】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.LOGIN_WORKER, params);
+			} else if (msg instanceof ReplyLoginMsg) {
+				LOG.info("接收到【回复登录】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.LOGIN_WORKER, params);
+			} else {
+				LOG.info("接收到【其它不明消息！！！！！！！！！！！！！！！】消息:{}", msg.toString());
+			}
 
-		if (msg instanceof RequestVoteMsg) {
-			LOG.info("接收到【请求投票】消息:{}", msg.toString());
-			try {
-				FlowHeader.putProducts(RoleController.REQUEST_VOTE_WORKER, params);
-			} catch (NoFlowLineException e) {
-				LOG.error(e.getMessage(), e);
-			}
-		} else if (msg instanceof ReplyRequestVoteMsg) {
-			LOG.info("接收到【回复请求投票】消息:{}", msg.toString());
-			try {
-				FlowHeader.putProducts(RoleController.REQUEST_VOTE_WORKER, params);
-			} catch (NoFlowLineException e) {
-				e.printStackTrace();
-			}
-		} else if (msg instanceof HeartbeatMsg) {
-			//LOG.info("接收到【心跳】消息:{}", msg.toString());
-			try {
-				FlowHeader.putProducts(RoleController.HEARTBEAT_WORKER, params);
-			} catch (NoFlowLineException e) {
-				e.printStackTrace();
-			}
-		} else if (msg instanceof ReplyHeartbeatMsg) {
-			//LOG.info("接收到【回复心跳】消息:{}", msg.toString());
-			try {
-				FlowHeader.putProducts(RoleController.HEARTBEAT_WORKER, params);
-			} catch (NoFlowLineException e) {
-				e.printStackTrace();
-			}
-		} else {
-			LOG.info("接收到【其它不明消息！！！！！！！！！！！！！！！】消息:{}", msg.toString());
+		} catch (NoFlowLineException e) {
+			LOG.error(e.getMessage(), e);
 		}
+
 	}
 
 	@Override

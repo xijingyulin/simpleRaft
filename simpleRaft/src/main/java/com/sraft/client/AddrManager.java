@@ -8,17 +8,17 @@ import org.slf4j.LoggerFactory;
 
 import com.sraft.core.net.ServerAddress;
 
-public class ConnAddrManager {
-	private static Logger LOG = LoggerFactory.getLogger(ConnAddrManager.class);
+public class AddrManager {
+	private static Logger LOG = LoggerFactory.getLogger(AddrManager.class);
 
-	private static volatile ConnAddrManager instance;
+	private static volatile AddrManager instance;
 	private List<ServerAddress> addrList = new ArrayList<ServerAddress>();
 
-	public static ConnAddrManager getInstance() {
+	public static AddrManager getInstance() {
 		if (instance == null) {
-			synchronized (ConnAddrManager.class) {
+			synchronized (AddrManager.class) {
 				if (instance == null) {
-					instance = new ConnAddrManager();
+					instance = new AddrManager();
 				}
 			}
 		}

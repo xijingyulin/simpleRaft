@@ -125,9 +125,6 @@ public class Leader extends AbstractRoles implements ILeader {
 		roleController.getAppendLogWorkder().setRole(role);
 		roleController.getAppendLogWorkder().setEnable(true);
 
-		//		roleController.getClientWorkder().setRole(role);
-		//		roleController.getClientWorkder().setEnable(true);
-
 		roleController.getRequestVoteWorker().setRole(role);
 		roleController.getRequestVoteWorker().setEnable(true);
 	}
@@ -138,8 +135,14 @@ public class Leader extends AbstractRoles implements ILeader {
 	 * @param role
 	 */
 	public void enableClientWorker(AbstractRoles role) {
-		roleController.getClientWorkder().setRole(role);
-		roleController.getClientWorkder().setEnable(true);
+		roleController.getLoginWorkder().setRole(role);
+		roleController.getLoginWorkder().setEnable(true);
+
+		roleController.getClientHeartbeatWorker().setRole(role);
+		roleController.getClientHeartbeatWorker().setEnable(true);
+
+		roleController.getClientActionWorkder().setRole(role);
+		roleController.getClientActionWorkder().setEnable(true);
 	}
 
 	/**

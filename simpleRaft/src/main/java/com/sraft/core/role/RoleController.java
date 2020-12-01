@@ -17,7 +17,9 @@ import com.sraft.core.message.HeartbeatMsg;
 import com.sraft.core.net.ConnManager;
 import com.sraft.core.net.ServerAddress;
 import com.sraft.core.role.worker.AppendLogWorkder;
-import com.sraft.core.role.worker.ClientRequestWorker;
+import com.sraft.core.role.worker.ClientActionWorker;
+import com.sraft.core.role.worker.ClientHeartbeatWorker;
+import com.sraft.core.role.worker.LoginWorker;
 import com.sraft.core.role.worker.HeartbeatWorker;
 import com.sraft.core.role.worker.RequestVoteWorker;
 import com.sraft.core.role.worker.Workder;
@@ -34,11 +36,17 @@ public class RoleController {
 	private TermAndVotedForService termAndVotedForService = null;
 
 	//消息处理操作
-	public static String CLIENT_WORKER = "CLIENT_WORKER";
-	public static String HEARTBEAT_WORKER = "HEARTBEAT_WORKER";
-	public static String APPEND_LOG_WORKER = "APPEND_LOG_WORKER";
-	public static String REQUEST_VOTE_WORKER = "REQUEST_VOTE_WORKER";
-	protected Workder clientWorkder = null;
+	public static final String LOGIN_WORKER = "LOGIN_WORKER";
+	public static final String CLIENT_HEARTBEAT_WORKER = "CLIENT_HEARTBEAT_WORKER";
+	public static final String CLIENT_ACTION_WORKDER = "CLIENT_ACTION_WORKDER";
+
+	public static final String HEARTBEAT_WORKER = "HEARTBEAT_WORKER";
+	public static final String APPEND_LOG_WORKER = "APPEND_LOG_WORKER";
+	public static final String REQUEST_VOTE_WORKER = "REQUEST_VOTE_WORKER";
+	protected Workder loginWorkder = null;
+	protected Workder clientHeartbeatWorker = null;
+	protected Workder clientActionWorkder = null;
+
 	protected Workder heatBeatWorkder = null;
 	protected Workder appendLogWorkder = null;
 	protected Workder requestVoteWorker = null;
@@ -68,11 +76,18 @@ public class RoleController {
 	 * （4）处理投票请求消息
 	 */
 	public void addWorker() {
-		clientWorkder = new ClientRequestWorker();
+		loginWorkder = new LoginWorker();
+		clientHeartbeatWorker = new ClientHeartbeatWorker();
+		clientActionWorkder = new ClientActionWorker();
+
 		heatBeatWorkder = new HeartbeatWorker();
 		appendLogWorkder = new AppendLogWorkder();
 		requestVoteWorker = new RequestVoteWorker();
-		FlowHeader.employ(CLIENT_WORKER, clientWorkder);
+
+		FlowHeader.employ(LOGIN_WORKER, loginWorkder);
+		FlowHeader.employ(CLIENT_HEARTBEAT_WORKER, clientHeartbeatWorker);
+		FlowHeader.employ(CLIENT_ACTION_WORKDER, clientActionWorkder);
+
 		FlowHeader.employ(HEARTBEAT_WORKER, heatBeatWorkder);
 		FlowHeader.employ(APPEND_LOG_WORKER, appendLogWorkder);
 		FlowHeader.employ(REQUEST_VOTE_WORKER, requestVoteWorker);
@@ -219,10 +234,6 @@ public class RoleController {
 		this.termAndVotedForService = termAndVotedForService;
 	}
 
-	public Workder getClientWorkder() {
-		return clientWorkder;
-	}
-
 	public Workder getHeatBeatWorkder() {
 		return heatBeatWorkder;
 	}
@@ -233,6 +244,18 @@ public class RoleController {
 
 	public Workder getRequestVoteWorker() {
 		return requestVoteWorker;
+	}
+
+	public Workder getLoginWorkder() {
+		return loginWorkder;
+	}
+
+	public Workder getClientHeartbeatWorker() {
+		return clientHeartbeatWorker;
+	}
+
+	public Workder getClientActionWorkder() {
+		return clientActionWorkder;
 	}
 
 }

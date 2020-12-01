@@ -19,10 +19,14 @@ public abstract class AbstractRoles extends Thread implements IRole {
 	protected volatile int votedFor = -1;
 	/**
 	 * 避免某种临界点场景，例如候选者在刚好超时，关闭所有操作的时候，恰好接收到过半的投票；那么超时这里会转换角色，过半投票那里也要转换角色
+	 * 
+	 * 领导者各种事务操作时，前提条件都是没有转换角色
 	 */
 	protected volatile boolean isChangedRole = false;
 
-	//是否接收到心跳，首先接收到的心跳里面任期需要大于等于自己的，才是有效的心跳
+	/**
+	 * 是否接收到心跳，首先接收到的心跳里面任期需要大于等于自己的，才是有效的心跳
+	 */
 	private volatile HeartbeatMsg heartbeatMsg = null;
 
 	public AbstractRoles(EnumRole playRole, RoleController roleController) throws IOException {
@@ -80,18 +84,28 @@ public abstract class AbstractRoles extends Thread implements IRole {
 		roleController.getAppendLogWorkder().setRole(role);
 		roleController.getAppendLogWorkder().setEnable(true);
 
-		roleController.getClientWorkder().setRole(role);
-		roleController.getClientWorkder().setEnable(true);
-
 		roleController.getRequestVoteWorker().setRole(role);
 		roleController.getRequestVoteWorker().setEnable(true);
+
+		roleController.getLoginWorkder().setRole(role);
+		roleController.getLoginWorkder().setEnable(true);
+
+		roleController.getClientHeartbeatWorker().setRole(role);
+		roleController.getClientHeartbeatWorker().setEnable(true);
+
+		roleController.getClientActionWorkder().setRole(role);
+		roleController.getClientActionWorkder().setEnable(true);
 	}
 
 	public void disableWorker() {
+		roleController.getLoginWorkder().setEnable(false);
+		roleController.getClientHeartbeatWorker().setEnable(false);
+		roleController.getClientActionWorkder().setEnable(false);
+
 		roleController.getHeatBeatWorkder().setEnable(false);
 		roleController.getAppendLogWorkder().setEnable(false);
-		roleController.getClientWorkder().setEnable(false);
 		roleController.getRequestVoteWorker().setEnable(false);
+
 	}
 
 	public HeartbeatMsg getHeartbeatMsg() {
