@@ -2,23 +2,9 @@ package com.sraft.client.message;
 
 import org.msgpack.annotation.Message;
 
-import com.sraft.core.message.Msg;
-
 @Message
-public class ReplyLoginMsg extends Msg {
+public class ReplyLoginMsg extends ClientReply {
 	private long sessionId;
-	/**
-	 * 是否成功
-	 */
-	private int result;
-	/**
-	 * 错误码，1:跟随者 2:候选者 3:领导者暂停服务 4:
-	 */
-	private int errCode;
-	/**
-	 * 当errCode == 1，remark不为空，那么remark就是领导者地址，格式ip:port
-	 */
-	private String remark;
 
 	public ReplyLoginMsg() {
 
@@ -30,30 +16,6 @@ public class ReplyLoginMsg extends Msg {
 
 	public void setSessionId(long sessionId) {
 		this.sessionId = sessionId;
-	}
-
-	public int getResult() {
-		return result;
-	}
-
-	public void setResult(int result) {
-		this.result = result;
-	}
-
-	public int getErrCode() {
-		return errCode;
-	}
-
-	public void setErrCode(int errCode) {
-		this.errCode = errCode;
-	}
-
-	public String getRemark() {
-		return remark;
-	}
-
-	public void setRemark(String remark) {
-		this.remark = remark;
 	}
 
 	@Override

@@ -1,0 +1,58 @@
+package com.sraft.core.session;
+
+public class Session {
+
+	/**
+	 * 客户端会话ID，由领导者分配
+	 */
+	private long sessionId;
+	/**
+	 * 领导者最新接收到客户端消息的时间
+	 */
+	private long lastReceiveTime;
+	/**
+	 * 客户端操作最新事务时间
+	 */
+	private long lastClientTransactionId = -1;
+
+	public Session() {
+
+	}
+
+	public long getSessionId() {
+		return sessionId;
+	}
+
+	public void setSessionId(long sessionId) {
+		this.sessionId = sessionId;
+	}
+
+	public long getLastReceiveTime() {
+		return lastReceiveTime;
+	}
+
+	public void setLastReceiveTime(long lastReceiveTime) {
+		this.lastReceiveTime = lastReceiveTime;
+	}
+
+	public long getLastClientTransactionId() {
+		return lastClientTransactionId;
+	}
+
+	public void setLastClientTransactionId(long lastClientTransactionId) {
+		this.lastClientTransactionId = lastClientTransactionId;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		builder.append("sessionId:");
+		builder.append(sessionId);
+		builder.append(",lastReceiveTime:");
+		builder.append(lastReceiveTime);
+		builder.append(",lastClientTransactionId:");
+		builder.append(lastClientTransactionId);
+		return builder.toString();
+	}
+
+}

@@ -3,6 +3,7 @@ package com.sraft.core.role;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,7 @@ import com.sraft.core.role.worker.LoginWorker;
 import com.sraft.core.role.worker.HeartbeatWorker;
 import com.sraft.core.role.worker.RequestVoteWorker;
 import com.sraft.core.role.worker.Workder;
+import com.sraft.core.session.Session;
 import com.sraft.enums.EnumRole;
 
 public class RoleController {
@@ -31,9 +33,22 @@ public class RoleController {
 	private EnumRole playRole = EnumRole.FOLLOWER;
 	private AbstractRoles role = null;
 	private Config config = null;
+	/**
+	 * 状态机操作
+	 */
 	private IStatement iStatement = null;
+	/**
+	 * 日志和快照持久化操作
+	 */
 	private ILogEntry iLogEntry = null;
+	/**
+	 * 持久化任期，和跟随者投票给候选者的ID
+	 */
 	private TermAndVotedForService termAndVotedForService = null;
+	/**
+	 * key:会话ID，value:会话信息
+	 */
+	private Map<Long, Session> sessionMap = new ConcurrentHashMap<Long, Session>();
 
 	//消息处理操作
 	public static final String LOGIN_WORKER = "LOGIN_WORKER";
@@ -256,6 +271,14 @@ public class RoleController {
 
 	public Workder getClientActionWorkder() {
 		return clientActionWorkder;
+	}
+
+	public Map<Long, Session> getSessionMap() {
+		return sessionMap;
+	}
+
+	public void setSessionMap(Map<Long, Session> sessionMap) {
+		this.sessionMap = sessionMap;
 	}
 
 }

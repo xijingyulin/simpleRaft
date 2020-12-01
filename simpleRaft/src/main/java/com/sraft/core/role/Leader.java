@@ -3,6 +3,7 @@ package com.sraft.core.role;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,7 +21,9 @@ import com.sraft.core.message.Msg;
 import com.sraft.core.net.ConnManager;
 import com.sraft.core.net.ServerAddress;
 import com.sraft.core.role.sender.LeaderMsgWork;
+import com.sraft.core.schedule.ScheduleSession;
 import com.sraft.core.schedule.ScheduleHeartbeat;
+import com.sraft.core.session.Session;
 import com.sraft.enums.EnumRole;
 
 public class Leader extends AbstractRoles implements ILeader {
@@ -42,6 +45,7 @@ public class Leader extends AbstractRoles implements ILeader {
 	public Leader(RoleController roleController) throws IOException {
 		super(EnumRole.LEADER, roleController);
 		connAddressList = roleController.getConfig().getConnAddressList();
+		IdGenerateHelper.initializeNextSession(roleController.getConfig().getSelfId());
 	}
 
 	@Override
@@ -60,6 +64,8 @@ public class Leader extends AbstractRoles implements ILeader {
 			LOG.info("发送空日志同步数据");
 			LOG.info("激活客户端消息通道");
 			enableClientWorker(this);
+			LOG.info("设置会话超时");
+			startSessionTimeout();
 		} catch (Throwable e) {
 			e.printStackTrace();
 			LOG.error(e.getMessage(), e);
@@ -245,5 +251,54 @@ public class Leader extends AbstractRoles implements ILeader {
 	 */
 	public void stopHeartbeat() {
 		ScheduleHeartbeat.getInstance().stop();
+	}
+
+	public void startSessionTimeout() {
+		ScheduleSession.getInstance().schedule(roleController.getConfig().getTickTime(), this);
+	}
+
+	public void stopSessionTimeout() {
+		ScheduleSession.getInstance().stop();
+	}
+
+	/**
+	 * 检查过期会话并删除
+	 * 
+	 * @return
+	 */
+	public void expiredSession(int checkRange) {
+		try {
+			//算上领导者自己
+			long minSessionTime = DateHelper.addMillSecond(new Date(), -checkRange);
+			Map<Long, Session> sessionMap = roleController.getSessionMap();
+			Iterator<Long> it = sessionMap.keySet().iterator();
+			while (it.hasNext()) {
+				Long sessionId = it.next();
+				Session session = sessionMap.get(sessionId);
+				if (session.getLastReceiveTime() < minSessionTime) {
+					it.remove();
+				}
+			}
+		} catch (ParseException e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
+		}
+	}
+
+	public synchronized boolean updateSession(long newSessionId, long newLastReceiveTime,
+			long newLastClientTransactionId) {
+		boolean isUpdate = false;
+		Map<Long, Session> sessionMap = roleController.getSessionMap();
+		Session oldSession = sessionMap.get(newSessionId);
+		if (oldSession == null) {
+			isUpdate = false;
+		} else {
+			isUpdate = true;
+			oldSession.setLastReceiveTime(newLastReceiveTime);
+			if (newLastClientTransactionId != -1) {
+				oldSession.setLastClientTransactionId(newLastClientTransactionId);
+			}
+		}
+		return isUpdate;
 	}
 }

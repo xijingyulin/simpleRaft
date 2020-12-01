@@ -22,6 +22,7 @@ public class SimpleRaftClient {
 	private static Logger LOG = LoggerFactory.getLogger(SimpleRaftClient.class);
 	private volatile long sessionId = -1;
 	private volatile EnumLoginStatus loginStatus = EnumLoginStatus.FALSE;
+	public static final int CLIENT_HEARTBEAT_INTERVAL = 200;
 
 	public SimpleRaftClient(String address) {
 		try {
@@ -43,7 +44,7 @@ public class SimpleRaftClient {
 		FlowHeader.employ(RoleController.LOGIN_WORKER, new LoginWorker(this));
 	}
 
-	private void sendLoginMsg() {
+	public void sendLoginMsg() {
 		ServerAddress serverAddress = AddrManager.getInstance().nextAddr();
 		Channel channel = ConnManager.getInstance().connect(serverAddress);
 		if (channel == null) {
@@ -63,5 +64,17 @@ public class SimpleRaftClient {
 		msg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		msg.setSessionId(sessionId);
 		return msg;
+	}
+
+	public void updateLoginStatus(EnumLoginStatus newStatus) {
+		synchronized (EnumLoginStatus.class) {
+			loginStatus = newStatus;
+		}
+	}
+
+	public synchronized void updateSessionId(long newSession) {
+		if (newSession != sessionId) {
+			sessionId = newSession;
+		}
 	}
 }

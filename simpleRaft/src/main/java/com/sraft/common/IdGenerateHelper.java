@@ -27,37 +27,30 @@ public class IdGenerateHelper {
 		return msgId;
 	}
 
+	private static long sessionId;
+
 	/**
+	 * 初始化会话ID
 	 * 
-	 * 获取最新会话ID，传入目前最新会话ID
-	 * 
-	 * @param newSessionId
-	 * @return
+	 * @param id
+	 *            机器ID
 	 */
-	public synchronized static long getSessionID(long lastSessionId) {
-		lastSessionId++;
-		return lastSessionId;
+	public static void initializeNextSession(long id) {
+		long nextSid = 0;
+		nextSid = (System.currentTimeMillis() << 24) >>> 8;
+		nextSid = nextSid | (id << 56);
+		sessionId = nextSid;
 	}
 
 	/**
-	 * 获取最新sraft事务ID，传入目前最新sraftTransactionId事务ID
+	 * 获取最新事务ID
 	 * 
 	 * @param newSraftTransactionId
 	 * @return
 	 */
-	public synchronized static long getSraftTransactionId(long lastSraftTransactionId) {
-		lastSraftTransactionId++;
-		return lastSraftTransactionId;
+	public synchronized static long getNextSessionId() {
+		sessionId++;
+		return sessionId;
 	}
 
-	/**
-	 * 获取客户端最新事务ID，仅在一个客户端的进程期间唯一
-	 * 
-	 * @param lastClientTransactionId
-	 * @return
-	 */
-	public synchronized static long getClientTransactionId(long lastClientTransactionId) {
-		lastClientTransactionId++;
-		return lastClientTransactionId;
-	}
 }
