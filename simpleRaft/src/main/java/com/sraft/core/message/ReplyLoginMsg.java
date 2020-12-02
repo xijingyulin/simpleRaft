@@ -4,18 +4,9 @@ import org.msgpack.annotation.Message;
 
 @Message
 public class ReplyLoginMsg extends ClientReply {
-	private long sessionId;
 
 	public ReplyLoginMsg() {
 
-	}
-
-	public long getSessionId() {
-		return sessionId;
-	}
-
-	public void setSessionId(long sessionId) {
-		this.sessionId = sessionId;
 	}
 
 	@Override

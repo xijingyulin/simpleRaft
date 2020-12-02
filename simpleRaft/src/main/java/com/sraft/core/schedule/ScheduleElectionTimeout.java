@@ -6,6 +6,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.sraft.core.role.AbstractRoles;
+import com.sraft.core.schedule.impl.ElectionTimeoutThread;
 
 public class ScheduleElectionTimeout {
 	private ScheduledExecutorService scheduler = null;

@@ -3,7 +3,7 @@ package com.sraft.core.message;
 import org.msgpack.annotation.Message;
 
 @Message
-public class ClientReply extends Msg {
+public class ClientReply extends ClientMsg {
 	/**
 	 * 是否成功
 	 */
@@ -54,6 +54,8 @@ public class ClientReply extends Msg {
 		builder.append(errCode);
 		builder.append(",remark:");
 		builder.append(remark);
+		builder.append(",sessionId:");
+		builder.append(sessionId);
 		builder.append(",msgType:");
 		builder.append(msgType);
 		builder.append(",msgId:");

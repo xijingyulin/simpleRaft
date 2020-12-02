@@ -24,10 +24,16 @@ public class Msg {
 	public static final int TYPE_REPLY_HEARTBEAT = 4;
 	public static final int TYPE_CLIENT_LOGIN = 5;
 	public static final int TYPE_REPLY_CLIENT_LOGIN = 6;
+	public static final int TYPE_CLIENT_HEARTBEAT = 7;
+	public static final int TYPE_REPLY_CLIENT_HEARTBEAT = 8;
 
 	public static final int ERR_CODE_LOGIN_FOLLOWER = 1;
 	public static final int ERR_CODE_LOGIN_CANDIDATE = 2;
 	public static final int ERR_CODE_LOGIN_LEADER_NO_MAJOR = 3;
+	/**
+	 * 会话过期，需要重新登录
+	 */
+	public static final int ERR_CODE_SESSION_TIMEOUT = 4;
 
 	public Msg() {
 

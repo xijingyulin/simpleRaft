@@ -33,7 +33,7 @@ public class AddrManager {
 
 	public void explainAddr(String address) throws Exception {
 		try {
-			String[] addressArr = address.split(";");
+			String[] addressArr = address.split(",");
 
 			for (int i = 0; i < addressArr.length; i++) {
 				String addr = addressArr[i];
@@ -58,11 +58,13 @@ public class AddrManager {
 	private int nowIndex = -1;
 
 	public ServerAddress nextAddr() {
-		nowIndex++;
-		if (nowIndex >= addrList.size()) {
-			nowIndex = 0;
+		synchronized (addrList) {
+			nowIndex++;
+			if (nowIndex >= addrList.size()) {
+				nowIndex = 0;
+			}
+			return addrList.get(nowIndex);
 		}
-		return addrList.get(nowIndex);
 	}
 
 	/**
@@ -72,12 +74,19 @@ public class AddrManager {
 	 * @param port
 	 */
 	public synchronized void addAddr(String host, int port) {
-		String key = host + ":" + port;
-		if (!addrSet.contains(key)) {
-			ServerAddress serverAddress = new ServerAddress(addrList.size(), host, port);
-			addrList.add(serverAddress);
-			nowIndex = addrList.size() - 2;
+		synchronized (addrList) {
+			String key = host + ":" + port;
+			if (!addrSet.contains(key)) {
+				ServerAddress serverAddress = new ServerAddress(addrList.size(), host, port);
+				addrList.add(serverAddress);
+				nowIndex = addrList.size() - 2;
+			}
 		}
 	}
 
+	public ServerAddress getLeaderConn() {
+		synchronized (addrList) {
+			return addrList.get(nowIndex);
+		}
+	}
 }

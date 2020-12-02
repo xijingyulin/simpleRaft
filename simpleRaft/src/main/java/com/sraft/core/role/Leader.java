@@ -268,7 +268,6 @@ public class Leader extends AbstractRoles implements ILeader {
 	 */
 	public void expiredSession(int checkRange) {
 		try {
-			//算上领导者自己
 			long minSessionTime = DateHelper.addMillSecond(new Date(), -checkRange);
 			Map<Long, Session> sessionMap = roleController.getSessionMap();
 			Iterator<Long> it = sessionMap.keySet().iterator();
@@ -276,6 +275,7 @@ public class Leader extends AbstractRoles implements ILeader {
 				Long sessionId = it.next();
 				Session session = sessionMap.get(sessionId);
 				if (session.getLastReceiveTime() < minSessionTime) {
+					LOG.info("【客户端会话过期:{}】", sessionId);
 					it.remove();
 				}
 			}
@@ -285,20 +285,25 @@ public class Leader extends AbstractRoles implements ILeader {
 		}
 	}
 
-	public synchronized boolean updateSession(long newSessionId, long newLastReceiveTime,
+	public synchronized boolean updateSession(long sessionId, long newLastReceiveTime,
 			long newLastClientTransactionId) {
 		boolean isUpdate = false;
 		Map<Long, Session> sessionMap = roleController.getSessionMap();
-		Session oldSession = sessionMap.get(newSessionId);
-		if (oldSession == null) {
+		Session session = sessionMap.get(sessionId);
+		if (session == null) {
 			isUpdate = false;
 		} else {
 			isUpdate = true;
-			oldSession.setLastReceiveTime(newLastReceiveTime);
+			session.setLastReceiveTime(newLastReceiveTime);
 			if (newLastClientTransactionId != -1) {
-				oldSession.setLastClientTransactionId(newLastClientTransactionId);
+				session.setLastClientTransactionId(newLastClientTransactionId);
 			}
 		}
 		return isUpdate;
+	}
+
+	public void addSession(long newSessionId, long newLastReceiveTime, long newLastClientTransactionId) {
+		Session session = new Session(newSessionId, newLastReceiveTime, newLastClientTransactionId);
+		roleController.getSessionMap().put(newSessionId, session);
 	}
 }

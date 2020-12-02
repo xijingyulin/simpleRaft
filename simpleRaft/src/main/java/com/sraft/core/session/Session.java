@@ -19,6 +19,13 @@ public class Session {
 
 	}
 
+	public Session(long sessionId, long lastReceiveTime, long lastClientTransactionId) {
+		super();
+		this.sessionId = sessionId;
+		this.lastReceiveTime = lastReceiveTime;
+		this.lastClientTransactionId = lastClientTransactionId;
+	}
+
 	public long getSessionId() {
 		return sessionId;
 	}

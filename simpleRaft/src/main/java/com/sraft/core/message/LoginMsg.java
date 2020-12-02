@@ -3,19 +3,10 @@ package com.sraft.core.message;
 import org.msgpack.annotation.Message;
 
 @Message
-public class LoginMsg extends Msg {
-	private long sessionId;
+public class LoginMsg extends ClientMsg {
 
 	public LoginMsg() {
 
-	}
-
-	public long getSessionId() {
-		return sessionId;
-	}
-
-	public void setSessionId(long sessionId) {
-		this.sessionId = sessionId;
 	}
 
 	@Override

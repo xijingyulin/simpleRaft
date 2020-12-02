@@ -3,6 +3,7 @@ package com.sraft.core.role;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -26,6 +27,8 @@ import com.sraft.core.role.worker.RequestVoteWorker;
 import com.sraft.core.role.worker.Workder;
 import com.sraft.core.session.Session;
 import com.sraft.enums.EnumRole;
+
+import sun.rmi.runtime.Log;
 
 public class RoleController {
 	private static Logger LOG = LoggerFactory.getLogger(RoleController.class);
@@ -174,12 +177,26 @@ public class RoleController {
 	}
 
 	class PrintStatusThread extends Thread {
+		StringBuilder sb = null;
+
 		@Override
 		public void run() {
 			while (true) {
 				if (role == null) {
 					continue;
 				}
+				sb = new StringBuilder();
+				sb.append("[");
+				Set<Long> sessionSet = sessionMap.keySet();
+				for (Long sessionId : sessionSet) {
+					if (sb.length() > 2) {
+						sb.append(",").append(sessionId);
+					} else {
+						sb.append(sessionId);
+					}
+				}
+				sb.append("]");
+				LOG.info("【会话ID:{}】", sb.toString());
 				if (role instanceof Follower) {
 					Follower follower = (Follower) role;
 					int leaderId = follower.getLeaderId();

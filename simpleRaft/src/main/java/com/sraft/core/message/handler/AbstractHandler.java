@@ -8,8 +8,10 @@ import org.slf4j.LoggerFactory;
 
 import com.sraft.common.flow.FlowHeader;
 import com.sraft.common.flow.NoFlowLineException;
+import com.sraft.core.message.ClientHeartbeatMsg;
 import com.sraft.core.message.HeartbeatMsg;
 import com.sraft.core.message.LoginMsg;
+import com.sraft.core.message.ReplyClientHeartbeatMsg;
 import com.sraft.core.message.ReplyHeartbeatMsg;
 import com.sraft.core.message.ReplyLoginMsg;
 import com.sraft.core.message.ReplyRequestVoteMsg;
@@ -46,6 +48,12 @@ public abstract class AbstractHandler extends ChannelHandlerAdapter {
 			} else if (msg instanceof ReplyLoginMsg) {
 				LOG.info("接收到【回复登录】消息:{}", msg.toString());
 				FlowHeader.putProducts(RoleController.LOGIN_WORKER, params);
+			} else if (msg instanceof ClientHeartbeatMsg) {
+				LOG.info("接收到【客户端心跳】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.CLIENT_HEARTBEAT_WORKER, params);
+			} else if (msg instanceof ReplyClientHeartbeatMsg) {
+				LOG.info("接收到【回复客户端心跳】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.CLIENT_HEARTBEAT_WORKER, params);
 			} else {
 				LOG.info("接收到【其它不明消息！！！！！！！！！！！！！！！】消息:{}", msg.toString());
 			}

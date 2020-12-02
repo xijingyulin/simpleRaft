@@ -3,26 +3,22 @@ package com.sraft.core.message;
 import org.msgpack.annotation.Message;
 
 @Message
-public class ClientMsg extends Msg {
+public class ReplyClientHeartbeatMsg extends ClientReply {
 
-	protected long sessionId;
+	public ReplyClientHeartbeatMsg() {
 
-	public ClientMsg() {
-
-	}
-
-	public long getSessionId() {
-		return sessionId;
-	}
-
-	public void setSessionId(long sessionId) {
-		this.sessionId = sessionId;
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("sessionId:");
+		builder.append("result:");
+		builder.append(result);
+		builder.append(",errCode:");
+		builder.append(errCode);
+		builder.append(",remark:");
+		builder.append(remark);
+		builder.append(",sessionId:");
 		builder.append(sessionId);
 		builder.append(",msgType:");
 		builder.append(msgType);

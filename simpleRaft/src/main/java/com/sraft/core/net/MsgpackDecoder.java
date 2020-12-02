@@ -6,9 +6,11 @@ import java.util.List;
 import org.msgpack.MessagePack;
 
 import com.sraft.common.DateHelper;
+import com.sraft.core.message.ClientHeartbeatMsg;
 import com.sraft.core.message.HeartbeatMsg;
 import com.sraft.core.message.LoginMsg;
 import com.sraft.core.message.Msg;
+import com.sraft.core.message.ReplyClientHeartbeatMsg;
 import com.sraft.core.message.ReplyHeartbeatMsg;
 import com.sraft.core.message.ReplyLoginMsg;
 import com.sraft.core.message.ReplyRequestVoteMsg;
@@ -48,6 +50,12 @@ public class MsgpackDecoder extends MessageToMessageDecoder<ByteBuf> {
 			break;
 		case Msg.TYPE_REPLY_CLIENT_LOGIN:
 			outObject = messagePack.read(array, ReplyLoginMsg.class);
+			break;
+		case Msg.TYPE_CLIENT_HEARTBEAT:
+			outObject = messagePack.read(array, ClientHeartbeatMsg.class);
+			break;
+		case Msg.TYPE_REPLY_CLIENT_HEARTBEAT:
+			outObject = messagePack.read(array, ReplyClientHeartbeatMsg.class);
 			break;
 		default:
 			outObject = msgObject;
