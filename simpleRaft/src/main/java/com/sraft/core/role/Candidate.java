@@ -148,6 +148,7 @@ public class Candidate extends AbstractRoles {
 	public void addTerm() {
 		synchronized (currentTerm) {
 			roleController.getTermAndVotedForService().writeTerm(currentTerm.incrementAndGet());
+			LOG.info("新任期:{}", currentTerm);
 		}
 	}
 

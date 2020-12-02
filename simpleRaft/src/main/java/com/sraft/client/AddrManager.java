@@ -33,7 +33,7 @@ public class AddrManager {
 
 	public void explainAddr(String address) throws Exception {
 		try {
-			String[] addressArr = address.split(",");
+			String[] addressArr = address.split(";");
 
 			for (int i = 0; i < addressArr.length; i++) {
 				String addr = addressArr[i];

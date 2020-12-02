@@ -8,12 +8,12 @@ import org.slf4j.LoggerFactory;
 
 import com.sraft.client.AddrManager;
 import com.sraft.client.SimpleRaftClient;
-import com.sraft.client.message.LoginMsg;
-import com.sraft.client.message.ReplyLoginMsg;
 import com.sraft.common.DateHelper;
 import com.sraft.common.IdGenerateHelper;
 import com.sraft.common.StringHelper;
+import com.sraft.core.message.LoginMsg;
 import com.sraft.core.message.Msg;
+import com.sraft.core.message.ReplyLoginMsg;
 import com.sraft.core.net.ServerAddress;
 import com.sraft.core.role.Candidate;
 import com.sraft.core.role.Follower;

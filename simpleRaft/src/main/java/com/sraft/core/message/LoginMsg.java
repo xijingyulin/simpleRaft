@@ -1,8 +1,6 @@
-package com.sraft.client.message;
+package com.sraft.core.message;
 
 import org.msgpack.annotation.Message;
-
-import com.sraft.core.message.Msg;
 
 @Message
 public class LoginMsg extends Msg {

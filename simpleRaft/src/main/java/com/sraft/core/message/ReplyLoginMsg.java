@@ -1,14 +1,12 @@
-package com.sraft.client.message;
+package com.sraft.core.message;
 
 import org.msgpack.annotation.Message;
 
-import com.sraft.core.message.Msg;
-
 @Message
-public class ClientHeartbeatMsg extends Msg {
+public class ReplyLoginMsg extends ClientReply {
 	private long sessionId;
 
-	public ClientHeartbeatMsg() {
+	public ReplyLoginMsg() {
 
 	}
 
@@ -25,6 +23,12 @@ public class ClientHeartbeatMsg extends Msg {
 		StringBuilder builder = new StringBuilder();
 		builder.append("sessionId:");
 		builder.append(sessionId);
+		builder.append(",result:");
+		builder.append(result);
+		builder.append(",errCode:");
+		builder.append(errCode);
+		builder.append(",remark:");
+		builder.append(remark);
 		builder.append(",msgType:");
 		builder.append(msgType);
 		builder.append(",msgId:");

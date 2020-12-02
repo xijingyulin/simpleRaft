@@ -6,12 +6,12 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sraft.client.message.LoginMsg;
-import com.sraft.client.message.ReplyLoginMsg;
 import com.sraft.common.flow.FlowHeader;
 import com.sraft.common.flow.NoFlowLineException;
 import com.sraft.core.message.HeartbeatMsg;
+import com.sraft.core.message.LoginMsg;
 import com.sraft.core.message.ReplyHeartbeatMsg;
+import com.sraft.core.message.ReplyLoginMsg;
 import com.sraft.core.message.ReplyRequestVoteMsg;
 import com.sraft.core.message.RequestVoteMsg;
 import com.sraft.core.role.RoleController;

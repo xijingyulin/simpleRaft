@@ -5,10 +5,10 @@ import java.util.Date;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sraft.client.message.LoginMsg;
 import com.sraft.common.DateHelper;
 import com.sraft.common.IdGenerateHelper;
 import com.sraft.common.flow.FlowHeader;
+import com.sraft.core.message.LoginMsg;
 import com.sraft.core.message.Msg;
 import com.sraft.core.net.ConnManager;
 import com.sraft.core.net.ServerAddress;
