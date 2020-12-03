@@ -6,7 +6,7 @@ import org.msgpack.annotation.Message;
 
 @Message
 public class AppendLogEntryMsg extends ServerMsg {
-
+	private long transactionId;
 	private long prevLogIndex;
 	private long prevLogTerm;
 	private long leaderCommit;

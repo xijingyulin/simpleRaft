@@ -34,6 +34,9 @@ public class RoleController {
 	private EnumRole playRole = EnumRole.FOLLOWER;
 	private AbstractRoles role = null;
 	private Config config = null;
+
+	private String LOCK_CHANGE_ROLE = new String("LOCK_CHANGE_ROLE");
+	private boolean isChanged = false;
 	/**
 	 * 状态机操作
 	 */
@@ -96,7 +99,7 @@ public class RoleController {
 	public void addWorker() {
 		loginWorkder = new LoginWorker(this);
 		clientHeartbeatWorker = new ClientHeartbeatWorker(this);
-		clientActionWorkder = new ClientActionWorker();
+		clientActionWorkder = new ClientActionWorker(this);
 
 		heatBeatWorkder = new HeartbeatWorker();
 		appendLogWorkder = new AppendLogWorkder();
@@ -110,9 +113,6 @@ public class RoleController {
 		FlowHeader.employ(APPEND_LOG_WORKER, appendLogWorkder);
 		FlowHeader.employ(REQUEST_VOTE_WORKER, requestVoteWorker);
 	}
-
-	private String LOCK_CHANGE_ROLE = new String("LOCK_CHANGE_ROLE");
-	private boolean isChanged = false;
 
 	public void play() {
 		while (true) {

@@ -7,7 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.sraft.client.AddrManager;
-import com.sraft.client.SimpleRaftClient;
+import com.sraft.client.ClientConnManager;
 import com.sraft.common.DateHelper;
 import com.sraft.common.IdGenerateHelper;
 import com.sraft.common.StringHelper;
@@ -27,15 +27,15 @@ import io.netty.channel.ChannelHandlerContext;
 public class LoginWorker extends Workder {
 	private static Logger LOG = LoggerFactory.getLogger(LoginWorker.class);
 
-	private SimpleRaftClient client;
+	private ClientConnManager clientConnManager;
 	private RoleController roleController;
 
 	public LoginWorker() {
 
 	}
 
-	public LoginWorker(SimpleRaftClient client) {
-		this.client = client;
+	public LoginWorker(ClientConnManager clientConnManager) {
+		this.clientConnManager = clientConnManager;
 		setEnable(true);
 	}
 
@@ -129,17 +129,17 @@ public class LoginWorker extends Workder {
 		if (result == Msg.RETURN_STATUS_OK) {
 			LOG.info("登录成功");
 			// 有可能在心跳超时内，没有登录成功，重新登录，可能造成重复登录，避免会话ID被后面的登录修改
-			if (!client.isLogin()) {
-				client.updateSessionId(replyLoginMsg.getSessionId());
-				client.updateLoginStatus(EnumLoginStatus.OK);
-				client.updateServiceStatus(EnumServiceStatus.USEFULL);
-				client.updateLastReceiveMsg(replyLoginMsg);
+			if (!clientConnManager.isLogin()) {
+				clientConnManager.updateSessionId(replyLoginMsg.getSessionId());
+				clientConnManager.updateLoginStatus(EnumLoginStatus.OK);
+				clientConnManager.updateServiceStatus(EnumServiceStatus.USEFULL);
+				clientConnManager.updateLastReceiveMsg(replyLoginMsg);
 			}
 		} else {
 			int errCode = replyLoginMsg.getErrCode();
 			switch (errCode) {
 			case Msg.ERR_CODE_LOGIN_FOLLOWER:
-				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("连接到跟随者,需要重新登录");
 				String remark = replyLoginMsg.getRemark();
 				if (StringHelper.checkIsNotNull(remark)) {
@@ -150,20 +150,20 @@ public class LoginWorker extends Workder {
 				}
 				break;
 			case Msg.ERR_CODE_LOGIN_CANDIDATE:
-				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("连接到候选者,需要重新登录");
 				break;
 			case Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR:
-				client.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
-				client.updateLoginStatus(EnumLoginStatus.OK);
+				clientConnManager.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.OK);
 				LOG.error("由于没有过半存活机器，领导者暂停服务");
 				break;
 			case Msg.ERR_CODE_ROLE_CHANGED:
-				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("角色已改变,需要重新登录");
 				break;
 			default:
-				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("其它原因,需要重新登录");
 				break;
 			}

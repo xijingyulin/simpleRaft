@@ -62,6 +62,7 @@ public class Leader extends AbstractRoles implements ILeader {
 			LOG.info("设置心跳超时");
 			startHeartbeat();
 			LOG.info("发送空日志同步数据");
+			sendEmptyLog();
 			LOG.info("设置会话超时");
 			startSessionTimeout();
 		} catch (Throwable e) {
@@ -71,6 +72,10 @@ public class Leader extends AbstractRoles implements ILeader {
 		}
 	}
 
+	public void sendEmptyLog() {
+		
+	}
+	
 	public void initNodeStatus() {
 		for (ServerAddress serverAddress : connAddressList) {
 			nodeStatusMap.put(serverAddress.getNodeId(), true);
@@ -121,18 +126,6 @@ public class Leader extends AbstractRoles implements ILeader {
 		msg.getSessionMap().putAll(roleController.getSessionMap());
 		return msg;
 	}
-
-//	@Override
-//	public void enableWorker(AbstractRoles role) {
-//		roleController.getHeatBeatWorkder().setRole(role);
-//		roleController.getHeatBeatWorkder().setEnable(true);
-//
-//		roleController.getAppendLogWorkder().setRole(role);
-//		roleController.getAppendLogWorkder().setEnable(true);
-//
-//		roleController.getRequestVoteWorker().setRole(role);
-//		roleController.getRequestVoteWorker().setEnable(true);
-//	}
 
 	/**
 	 * 转换角色

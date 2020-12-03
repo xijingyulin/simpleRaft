@@ -4,7 +4,13 @@ import org.msgpack.annotation.Message;
 
 @Message
 public class Msg {
+	/**
+	 * 消息类型
+	 */
 	protected int msgType;
+	/**
+	 * 消息ID，发送端生成，不具备全局唯一性
+	 */
 	protected long msgId;
 	/**
 	 * 发送者发送时间
@@ -14,10 +20,11 @@ public class Msg {
 	 * 接收者接收到的时间
 	 */
 	protected long receviceTime;
-
+	// 执行结果
 	public static final int RETURN_STATUS_OK = 1;
 	public static final int RETURN_STATUS_FALSE = 2;
 
+	// 消息类型
 	public static final int TYPE_REQUEST_VOTE = 1;
 	public static final int TYPE_REPLY_REQUEST_VOTE = 2;
 	public static final int TYPE_HEARTBEAT = 3;
@@ -26,7 +33,10 @@ public class Msg {
 	public static final int TYPE_REPLY_CLIENT_LOGIN = 6;
 	public static final int TYPE_CLIENT_HEARTBEAT = 7;
 	public static final int TYPE_REPLY_CLIENT_HEARTBEAT = 8;
+	public static final int TYPE_CLIENT_ACTION = 9;
+	public static final int TYPE_REPLY_CLIENT_ACTION = 10;
 
+	// 异常码
 	public static final int ERR_CODE_LOGIN_FOLLOWER = 1;
 	public static final int ERR_CODE_LOGIN_CANDIDATE = 2;
 	/**

@@ -4,7 +4,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.sraft.client.SimpleRaftClient;
+import com.sraft.client.ClientConnManager;
 import com.sraft.core.schedule.impl.ClientHeartbeatThread;
 
 public class ScheduleClientHeartbeat {
@@ -22,7 +22,7 @@ public class ScheduleClientHeartbeat {
 		return instance;
 	}
 
-	public void schedule(int tickTime, SimpleRaftClient client) {
+	public void schedule(int tickTime, ClientConnManager client) {
 		scheduler = Executors.newSingleThreadScheduledExecutor();
 		int checkRange = tickTime * 3;
 		scheduler.schedule(new ClientHeartbeatThread(client, checkRange), tickTime, TimeUnit.MILLISECONDS);

@@ -6,7 +6,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sraft.client.SimpleRaftClient;
+import com.sraft.client.ClientConnManager;
 import com.sraft.common.DateHelper;
 import com.sraft.common.IdGenerateHelper;
 import com.sraft.core.message.ClientHeartbeatMsg;
@@ -24,15 +24,15 @@ import io.netty.channel.ChannelHandlerContext;
 public class ClientHeartbeatWorker extends Workder {
 	private static Logger LOG = LoggerFactory.getLogger(ClientHeartbeatWorker.class);
 
-	private SimpleRaftClient client;
+	private ClientConnManager clientConnManager;
 	private RoleController roleController;
 
 	public ClientHeartbeatWorker() {
 
 	}
 
-	public ClientHeartbeatWorker(SimpleRaftClient client) {
-		this.client = client;
+	public ClientHeartbeatWorker(ClientConnManager clientConnManager) {
+		this.clientConnManager = clientConnManager;
 		setEnable(true);
 	}
 
@@ -96,34 +96,34 @@ public class ClientHeartbeatWorker extends Workder {
 	public void dealReplyClientHeartbeatMsg(ReplyClientHeartbeatMsg replyClientHeartbeatMsg) {
 		int result = replyClientHeartbeatMsg.getResult();
 		if (result == Msg.RETURN_STATUS_OK) {
-			client.updateServiceStatus(EnumServiceStatus.USEFULL);
-			client.updateLastReceiveMsg(replyClientHeartbeatMsg);
+			clientConnManager.updateServiceStatus(EnumServiceStatus.USEFULL);
+			clientConnManager.updateLastReceiveMsg(replyClientHeartbeatMsg);
 		} else {
 			int errCode = replyClientHeartbeatMsg.getErrCode();
 			switch (errCode) {
 			case Msg.ERR_CODE_LOGIN_FOLLOWER:
-				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("连接到跟随者,需要重新登录");
 				break;
 			case Msg.ERR_CODE_LOGIN_CANDIDATE:
-				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("连接到候选者,需要重新登录");
 				break;
 			case Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR:
-				client.updateLastReceiveMsg(replyClientHeartbeatMsg);
-				client.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
+				clientConnManager.updateLastReceiveMsg(replyClientHeartbeatMsg);
+				clientConnManager.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
 				LOG.error("由于没有过半存活机器，领导者暂停服务");
 				break;
 			case Msg.ERR_CODE_SESSION_TIMEOUT:
-				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("会话超时,需要重新登录");
 				break;
 			case Msg.ERR_CODE_ROLE_CHANGED:
-				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("角色已改变,需要重新登录");
 				break;
 			default:
-				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("其它原因,需要重新登录");
 				break;
 			}

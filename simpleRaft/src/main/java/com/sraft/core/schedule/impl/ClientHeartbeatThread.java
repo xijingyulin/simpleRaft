@@ -3,14 +3,14 @@ package com.sraft.core.schedule.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sraft.client.SimpleRaftClient;
+import com.sraft.client.ClientConnManager;
 
 public class ClientHeartbeatThread implements Runnable {
 	private static Logger LOG = LoggerFactory.getLogger(ClientHeartbeatThread.class);
-	private SimpleRaftClient client;
+	private ClientConnManager client;
 	private int checkRange;
 
-	public ClientHeartbeatThread(SimpleRaftClient client, int checkRange) {
+	public ClientHeartbeatThread(ClientConnManager client, int checkRange) {
 		this.client = client;
 		this.checkRange = checkRange;
 	}
@@ -29,7 +29,7 @@ public class ClientHeartbeatThread implements Runnable {
 				client.sendClientHeartbeat();
 			} else {
 				LOG.error("登录失败,重新登录");
-				client.sendLoginMsg();
+				client.reConnected();
 			}
 			client.stopClientHeartbeat();
 			client.startClientHeartbeat();

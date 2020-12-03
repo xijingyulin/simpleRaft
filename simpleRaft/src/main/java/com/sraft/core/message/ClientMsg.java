@@ -5,6 +5,9 @@ import org.msgpack.annotation.Message;
 @Message
 public class ClientMsg extends Msg {
 
+	/**
+	 * 会话ID，具备全局唯一性
+	 */
 	protected long sessionId;
 
 	public ClientMsg() {
