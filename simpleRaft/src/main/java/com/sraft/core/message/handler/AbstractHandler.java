@@ -49,10 +49,10 @@ public abstract class AbstractHandler extends ChannelHandlerAdapter {
 				LOG.info("接收到【回复登录】消息:{}", msg.toString());
 				FlowHeader.putProducts(RoleController.LOGIN_WORKER, params);
 			} else if (msg instanceof ClientHeartbeatMsg) {
-				LOG.info("接收到【客户端心跳】消息:{}", msg.toString());
+				//LOG.info("接收到【客户端心跳】消息:{}", msg.toString());
 				FlowHeader.putProducts(RoleController.CLIENT_HEARTBEAT_WORKER, params);
 			} else if (msg instanceof ReplyClientHeartbeatMsg) {
-				LOG.info("接收到【回复客户端心跳】消息:{}", msg.toString());
+				//LOG.info("接收到【回复客户端心跳】消息:{}", msg.toString());
 				FlowHeader.putProducts(RoleController.CLIENT_HEARTBEAT_WORKER, params);
 			} else {
 				LOG.info("接收到【其它不明消息！！！！！！！！！！！！！！！】消息:{}", msg.toString());

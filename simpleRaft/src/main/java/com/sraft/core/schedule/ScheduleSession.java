@@ -22,11 +22,11 @@ public class ScheduleSession {
 		return instance;
 	}
 
-	public void schedule(int clientHeartbeatInterval, Leader role) {
+	public void schedule(int tickTime, Leader role) {
 		scheduler = Executors.newSingleThreadScheduledExecutor();
-		int checkTime = clientHeartbeatInterval * 2;
-		// 考虑到领导者重新选举所花费的时间，已经客户端找到新领导者的时间，设为10倍较为合适
-		int checkRange = clientHeartbeatInterval * 10;
+		int checkTime = tickTime;
+		// 考虑到领导者重新选举所花费的时间，已经客户端找到新领导者的时间，设为10秒较为合适
+		int checkRange = tickTime * 50;
 		scheduler.schedule(new SessionThread(role, checkRange), checkTime, TimeUnit.MILLISECONDS);
 	}
 

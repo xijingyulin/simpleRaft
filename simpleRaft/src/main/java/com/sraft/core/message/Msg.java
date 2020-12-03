@@ -29,11 +29,18 @@ public class Msg {
 
 	public static final int ERR_CODE_LOGIN_FOLLOWER = 1;
 	public static final int ERR_CODE_LOGIN_CANDIDATE = 2;
+	/**
+	 * 该种情况下，不需要重新登录，但禁用服务，客户端不可用
+	 */
 	public static final int ERR_CODE_LOGIN_LEADER_NO_MAJOR = 3;
 	/**
 	 * 会话过期，需要重新登录
 	 */
 	public static final int ERR_CODE_SESSION_TIMEOUT = 4;
+	/**
+	 * 角色已转换
+	 */
+	public static final int ERR_CODE_ROLE_CHANGED = 5;
 
 	public Msg() {
 

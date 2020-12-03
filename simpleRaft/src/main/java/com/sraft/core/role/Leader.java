@@ -62,8 +62,6 @@ public class Leader extends AbstractRoles implements ILeader {
 			LOG.info("设置心跳超时");
 			startHeartbeat();
 			LOG.info("发送空日志同步数据");
-			LOG.info("激活客户端消息通道");
-			enableClientWorker(this);
 			LOG.info("设置会话超时");
 			startSessionTimeout();
 		} catch (Throwable e) {
@@ -120,36 +118,21 @@ public class Leader extends AbstractRoles implements ILeader {
 		msg.setNodeId(roleController.getConfig().getSelfId());
 		msg.setTerm(getCurrentTerm());
 		msg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
+		msg.getSessionMap().putAll(roleController.getSessionMap());
 		return msg;
 	}
 
-	@Override
-	public void enableWorker(AbstractRoles role) {
-		roleController.getHeatBeatWorkder().setRole(role);
-		roleController.getHeatBeatWorkder().setEnable(true);
-
-		roleController.getAppendLogWorkder().setRole(role);
-		roleController.getAppendLogWorkder().setEnable(true);
-
-		roleController.getRequestVoteWorker().setRole(role);
-		roleController.getRequestVoteWorker().setEnable(true);
-	}
-
-	/**
-	 * 同步完日志后，再处理客户端的消息
-	 * 
-	 * @param role
-	 */
-	public void enableClientWorker(AbstractRoles role) {
-		roleController.getLoginWorkder().setRole(role);
-		roleController.getLoginWorkder().setEnable(true);
-
-		roleController.getClientHeartbeatWorker().setRole(role);
-		roleController.getClientHeartbeatWorker().setEnable(true);
-
-		roleController.getClientActionWorkder().setRole(role);
-		roleController.getClientActionWorkder().setEnable(true);
-	}
+//	@Override
+//	public void enableWorker(AbstractRoles role) {
+//		roleController.getHeatBeatWorkder().setRole(role);
+//		roleController.getHeatBeatWorkder().setEnable(true);
+//
+//		roleController.getAppendLogWorkder().setRole(role);
+//		roleController.getAppendLogWorkder().setEnable(true);
+//
+//		roleController.getRequestVoteWorker().setRole(role);
+//		roleController.getRequestVoteWorker().setEnable(true);
+//	}
 
 	/**
 	 * 转换角色
@@ -285,25 +268,4 @@ public class Leader extends AbstractRoles implements ILeader {
 		}
 	}
 
-	public synchronized boolean updateSession(long sessionId, long newLastReceiveTime,
-			long newLastClientTransactionId) {
-		boolean isUpdate = false;
-		Map<Long, Session> sessionMap = roleController.getSessionMap();
-		Session session = sessionMap.get(sessionId);
-		if (session == null) {
-			isUpdate = false;
-		} else {
-			isUpdate = true;
-			session.setLastReceiveTime(newLastReceiveTime);
-			if (newLastClientTransactionId != -1) {
-				session.setLastClientTransactionId(newLastClientTransactionId);
-			}
-		}
-		return isUpdate;
-	}
-
-	public void addSession(long newSessionId, long newLastReceiveTime, long newLastClientTransactionId) {
-		Session session = new Session(newSessionId, newLastReceiveTime, newLastClientTransactionId);
-		roleController.getSessionMap().put(newSessionId, session);
-	}
 }

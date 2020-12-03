@@ -1,11 +1,14 @@
 package com.sraft.core.role;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.sraft.core.schedule.ScheduleElectionTimeout;
+import com.sraft.core.session.Session;
 import com.sraft.enums.EnumRole;
 
 public class Follower extends AbstractRoles {
@@ -81,4 +84,16 @@ public class Follower extends AbstractRoles {
 		}
 	}
 
+	public void updateSession(Map<Long, Session> newSessionMap) {
+		Map<Long, Session> oldSessionMap = roleController.getSessionMap();
+		Iterator<Long> it = oldSessionMap.keySet().iterator();
+		while (it.hasNext()) {
+			Long oldSessionId = it.next();
+			Session newSession = newSessionMap.get(oldSessionId);
+			if (newSession == null) {
+				it.remove();
+			}
+		}
+		oldSessionMap.putAll(newSessionMap);
+	}
 }

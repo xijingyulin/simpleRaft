@@ -20,6 +20,7 @@ import com.sraft.core.role.worker.ClientHeartbeatWorker;
 import com.sraft.core.role.worker.LoginWorker;
 import com.sraft.core.schedule.ScheduleClientHeartbeat;
 import com.sraft.enums.EnumLoginStatus;
+import com.sraft.enums.EnumServiceStatus;
 
 import io.netty.channel.Channel;
 
@@ -27,7 +28,11 @@ public class SimpleRaftClient {
 	private static Logger LOG = LoggerFactory.getLogger(SimpleRaftClient.class);
 	private volatile long sessionId = -1;
 	private volatile EnumLoginStatus loginStatus = EnumLoginStatus.FALSE;
-	public static final int CLIENT_HEARTBEAT_INTERVAL = 200;
+	/**
+	 * 服务是否可用；登录成功并且领导者正常时，才是可用；否则都是不可用
+	 */
+	private volatile EnumServiceStatus serviceStatus = EnumServiceStatus.UN_USEFULL;
+	public static final int CLIENT_HEARTBEAT_INTERVAL = 300;
 	private volatile ClientMsg lastReceiveMsg = null;
 
 	public SimpleRaftClient(String address) {
@@ -64,12 +69,12 @@ public class SimpleRaftClient {
 	}
 
 	public void sendLoginMsg() {
-		try {
-			//在没有领导者的情况下，重复登录过于频繁，所以睡眠1s
-			Thread.sleep(1000 * 1);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+		//		try {
+		//			//在没有领导者的情况下，重复登录过于频繁，所以睡眠1s
+		//			Thread.sleep(1000 * 1);
+		//		} catch (InterruptedException e) {
+		//			e.printStackTrace();
+		//		}
 		ServerAddress serverAddress = AddrManager.getInstance().nextAddr();
 		Channel channel = ConnManager.getInstance().connect(serverAddress);
 		if (channel == null) {
@@ -96,7 +101,17 @@ public class SimpleRaftClient {
 
 	public void updateLoginStatus(EnumLoginStatus newStatus) {
 		synchronized (EnumLoginStatus.class) {
-			loginStatus = newStatus;
+			if (loginStatus != newStatus) {
+				loginStatus = newStatus;
+			}
+		}
+	}
+
+	public void updateServiceStatus(EnumServiceStatus newStatus) {
+		synchronized (EnumServiceStatus.class) {
+			if (serviceStatus != newStatus) {
+				serviceStatus = newStatus;
+			}
 		}
 	}
 

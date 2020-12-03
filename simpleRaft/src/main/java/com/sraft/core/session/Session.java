@@ -1,5 +1,8 @@
 package com.sraft.core.session;
 
+import org.msgpack.annotation.Message;
+
+@Message
 public class Session {
 
 	/**

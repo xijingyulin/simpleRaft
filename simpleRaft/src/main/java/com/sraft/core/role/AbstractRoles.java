@@ -78,29 +78,23 @@ public abstract class AbstractRoles extends Thread implements IRole {
 	}
 
 	public void enableWorker(AbstractRoles role) {
+		roleController.getLoginWorkder().setRole(role);
+		roleController.getClientHeartbeatWorker().setRole(role);
+		roleController.getClientActionWorkder().setRole(role);
+
 		roleController.getHeatBeatWorkder().setRole(role);
 		roleController.getHeatBeatWorkder().setEnable(true);
-
 		roleController.getAppendLogWorkder().setRole(role);
 		roleController.getAppendLogWorkder().setEnable(true);
-
 		roleController.getRequestVoteWorker().setRole(role);
 		roleController.getRequestVoteWorker().setEnable(true);
 
-		roleController.getLoginWorkder().setRole(role);
-		roleController.getLoginWorkder().setEnable(true);
-
-		roleController.getClientHeartbeatWorker().setRole(role);
-		roleController.getClientHeartbeatWorker().setEnable(true);
-
-		roleController.getClientActionWorkder().setRole(role);
-		roleController.getClientActionWorkder().setEnable(true);
 	}
 
 	public void disableWorker() {
-		roleController.getLoginWorkder().setEnable(false);
-		roleController.getClientHeartbeatWorker().setEnable(false);
-		roleController.getClientActionWorkder().setEnable(false);
+		roleController.getLoginWorkder().setRole(null);
+		roleController.getClientHeartbeatWorker().setRole(null);
+		roleController.getClientActionWorkder().setRole(null);
 
 		roleController.getHeatBeatWorkder().setEnable(false);
 		roleController.getAppendLogWorkder().setEnable(false);

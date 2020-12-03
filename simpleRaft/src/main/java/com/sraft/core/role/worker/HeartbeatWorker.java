@@ -69,6 +69,7 @@ public class HeartbeatWorker extends Workder {
 				Follower follower = (Follower) role;
 				follower.setHeartbeatMsg(heartbeatMsg);
 				follower.setLeaderId(heartbeatMsg.getNodeId());
+				follower.updateSession(heartbeatMsg.getSessionMap());
 			}
 		}
 	}

@@ -28,8 +28,6 @@ import com.sraft.core.role.worker.Workder;
 import com.sraft.core.session.Session;
 import com.sraft.enums.EnumRole;
 
-import sun.rmi.runtime.Log;
-
 public class RoleController {
 	private static Logger LOG = LoggerFactory.getLogger(RoleController.class);
 
@@ -78,6 +76,8 @@ public class RoleController {
 		addWorker();
 		LOG.info("启动服务");
 		openService();
+		LOG.info("开始客户端消息通道服务");
+		openClientWorker();
 		LOG.info("启动状态打印线程");
 		new PrintStatusThread().start();
 	}
@@ -94,8 +94,8 @@ public class RoleController {
 	 * （4）处理投票请求消息
 	 */
 	public void addWorker() {
-		loginWorkder = new LoginWorker();
-		clientHeartbeatWorker = new ClientHeartbeatWorker();
+		loginWorkder = new LoginWorker(this);
+		clientHeartbeatWorker = new ClientHeartbeatWorker(this);
 		clientActionWorkder = new ClientActionWorker();
 
 		heatBeatWorkder = new HeartbeatWorker();
@@ -298,4 +298,33 @@ public class RoleController {
 		this.sessionMap = sessionMap;
 	}
 
+	public synchronized boolean updateSession(long sessionId, long newLastReceiveTime,
+			long newLastClientTransactionId) {
+		boolean isUpdate = false;
+		Session session = sessionMap.get(sessionId);
+		if (session == null) {
+			isUpdate = false;
+		} else {
+			isUpdate = true;
+			session.setLastReceiveTime(newLastReceiveTime);
+			if (newLastClientTransactionId != -1) {
+				session.setLastClientTransactionId(newLastClientTransactionId);
+			}
+		}
+		return isUpdate;
+	}
+
+	public void addSession(long newSessionId, long newLastReceiveTime, long newLastClientTransactionId) {
+		Session session = new Session(newSessionId, newLastReceiveTime, newLastClientTransactionId);
+		sessionMap.put(newSessionId, session);
+	}
+
+	/**
+	 * 无论何时，都应该接收并响应客户端消息
+	 */
+	public void openClientWorker() {
+		loginWorkder.setEnable(true);
+		clientHeartbeatWorker.setEnable(true);
+		clientActionWorkder.setEnable(true);
+	}
 }

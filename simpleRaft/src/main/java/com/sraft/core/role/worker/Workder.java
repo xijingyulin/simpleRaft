@@ -17,9 +17,9 @@ public abstract class Workder implements IFlowWorker {
 	/**
 	 * 因为任期不一致，选举超时等消息，需要转换角色，避免在停止角色后继续处理消息，暂时将消息放到队列中
 	 */
-	private boolean enable = false;
+	private volatile boolean enable = false;
 
-	protected AbstractRoles role = null;
+	protected volatile AbstractRoles role = null;
 
 	@Override
 	public void deliver(Object object) {

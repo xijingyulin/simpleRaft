@@ -18,7 +18,9 @@ import com.sraft.core.net.ServerAddress;
 import com.sraft.core.role.Candidate;
 import com.sraft.core.role.Follower;
 import com.sraft.core.role.Leader;
+import com.sraft.core.role.RoleController;
 import com.sraft.enums.EnumLoginStatus;
+import com.sraft.enums.EnumServiceStatus;
 
 import io.netty.channel.ChannelHandlerContext;
 
@@ -26,6 +28,7 @@ public class LoginWorker extends Workder {
 	private static Logger LOG = LoggerFactory.getLogger(LoginWorker.class);
 
 	private SimpleRaftClient client;
+	private RoleController roleController;
 
 	public LoginWorker() {
 
@@ -33,6 +36,11 @@ public class LoginWorker extends Workder {
 
 	public LoginWorker(SimpleRaftClient client) {
 		this.client = client;
+		setEnable(true);
+	}
+
+	public LoginWorker(RoleController roleController) {
+		this.roleController = roleController;
 		setEnable(true);
 	}
 
@@ -51,11 +59,21 @@ public class LoginWorker extends Workder {
 	}
 
 	private void dealLoginMsg(ChannelHandlerContext ctx, LoginMsg loginMsg) {
+		long sessionId = loginMsg.getSessionId();
+		long receviceTime = loginMsg.getReceviceTime();
 		ReplyLoginMsg replyLoginMsg = new ReplyLoginMsg();
 		replyLoginMsg.setMsgType(Msg.TYPE_REPLY_CLIENT_LOGIN);
 		replyLoginMsg.setMsgId(IdGenerateHelper.getMsgId());
 		replyLoginMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
-		if (role instanceof Follower) {
+		replyLoginMsg.setSessionId(sessionId);
+		boolean isUpdate = roleController.updateSession(sessionId, receviceTime, -1);
+		if (role == null) {
+			replyLoginMsg.setResult(Msg.RETURN_STATUS_FALSE);
+			replyLoginMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
+		} else if (role.isChangedRole()) {
+			replyLoginMsg.setResult(Msg.RETURN_STATUS_FALSE);
+			replyLoginMsg.setErrCode(Msg.ERR_CODE_ROLE_CHANGED);
+		} else if (role instanceof Follower) {
 			Follower follower = (Follower) role;
 			int leaderId = follower.getLeaderId();
 			if (leaderId != -1) {
@@ -63,23 +81,19 @@ public class LoginWorker extends Workder {
 						.get(leaderId);
 				replyLoginMsg.setRemark(serverAddress.getHost() + ":" + serverAddress.getPort());
 			}
-			replyLoginMsg.setSessionId(loginMsg.getSessionId());
 			replyLoginMsg.setResult(Msg.RETURN_STATUS_FALSE);
 			replyLoginMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
 		} else if (role instanceof Candidate) {
-			replyLoginMsg.setSessionId(loginMsg.getSessionId());
 			replyLoginMsg.setResult(Msg.RETURN_STATUS_FALSE);
 			replyLoginMsg.setErrCode(Msg.ERR_CODE_LOGIN_CANDIDATE);
 		} else if (role instanceof Leader) {
 			Leader leader = (Leader) role;
-			long receviceTime = loginMsg.getReceviceTime();
-			long sessionId = loginMsg.getSessionId();
 			if (sessionId == -1) {
 				//领导者正常
 				if (leader.isAliveOverHalf()) {
 					// 分配新会话
 					sessionId = IdGenerateHelper.getNextSessionId();
-					leader.addSession(sessionId, receviceTime, -1);
+					roleController.addSession(sessionId, receviceTime, -1);
 					replyLoginMsg.setSessionId(sessionId);
 					replyLoginMsg.setResult(Msg.RETURN_STATUS_OK);
 				} else {
@@ -87,17 +101,15 @@ public class LoginWorker extends Workder {
 					replyLoginMsg.setResult(Msg.RETURN_STATUS_FALSE);
 					replyLoginMsg.setErrCode(Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR);
 				}
-
 			} else {
-				boolean isUpdate = leader.updateSession(sessionId, receviceTime, -1);
 				if (!isUpdate) {
 					LOG.info("会话已过期,分配新会话");
+					// 分配新会话
+					sessionId = IdGenerateHelper.getNextSessionId();
+					roleController.addSession(sessionId, receviceTime, -1);
+					replyLoginMsg.setSessionId(sessionId);
 					//领导者正常
 					if (leader.isAliveOverHalf()) {
-						// 分配新会话
-						sessionId = IdGenerateHelper.getNextSessionId();
-						leader.addSession(sessionId, receviceTime, -1);
-						replyLoginMsg.setSessionId(sessionId);
 						replyLoginMsg.setResult(Msg.RETURN_STATUS_OK);
 					} else {
 						//领导者不正常，没有过半存活跟随者，不分配新会话
@@ -105,7 +117,6 @@ public class LoginWorker extends Workder {
 						replyLoginMsg.setErrCode(Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR);
 					}
 				} else {
-					replyLoginMsg.setSessionId(sessionId);
 					replyLoginMsg.setResult(Msg.RETURN_STATUS_OK);
 				}
 			}
@@ -121,12 +132,14 @@ public class LoginWorker extends Workder {
 			if (!client.isLogin()) {
 				client.updateSessionId(replyLoginMsg.getSessionId());
 				client.updateLoginStatus(EnumLoginStatus.OK);
+				client.updateServiceStatus(EnumServiceStatus.USEFULL);
 				client.updateLastReceiveMsg(replyLoginMsg);
 			}
 		} else {
 			int errCode = replyLoginMsg.getErrCode();
 			switch (errCode) {
 			case Msg.ERR_CODE_LOGIN_FOLLOWER:
+				client.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("连接到跟随者,需要重新登录");
 				String remark = replyLoginMsg.getRemark();
 				if (StringHelper.checkIsNotNull(remark)) {
@@ -137,15 +150,23 @@ public class LoginWorker extends Workder {
 				}
 				break;
 			case Msg.ERR_CODE_LOGIN_CANDIDATE:
+				client.updateLoginStatus(EnumLoginStatus.FALSE);
 				LOG.error("连接到候选者,需要重新登录");
 				break;
 			case Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR:
-				LOG.error("由于没有过半存活机器，领导者暂停服务,需要重新登录");
+				client.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
+				client.updateLoginStatus(EnumLoginStatus.OK);
+				LOG.error("由于没有过半存活机器，领导者暂停服务");
+				break;
+			case Msg.ERR_CODE_ROLE_CHANGED:
+				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				LOG.error("角色已改变,需要重新登录");
 				break;
 			default:
+				client.updateLoginStatus(EnumLoginStatus.FALSE);
+				LOG.error("其它原因,需要重新登录");
 				break;
 			}
-			client.updateLoginStatus(EnumLoginStatus.FALSE);
 		}
 	}
 }

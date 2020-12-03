@@ -80,6 +80,7 @@ public class AddrManager {
 				ServerAddress serverAddress = new ServerAddress(addrList.size(), host, port);
 				addrList.add(serverAddress);
 				nowIndex = addrList.size() - 2;
+				addrSet.add(key);
 			}
 		}
 	}
