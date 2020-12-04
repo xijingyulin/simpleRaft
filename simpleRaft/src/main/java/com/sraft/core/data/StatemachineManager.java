@@ -64,4 +64,9 @@ public class StatemachineManager implements IStatement {
 		this.lastCommitId = logIndex;
 	}
 
+	@Override
+	public long getLastCommitId() {
+		return lastCommitId;
+	}
+
 }

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import com.sraft.common.flow.IFlowWorker;
 import com.sraft.core.message.ClientActionMsg;
+import com.sraft.core.message.Packet;
 import com.sraft.core.net.ConnManager;
 
 public class ClientSenderWorker implements IFlowWorker {
@@ -18,7 +19,7 @@ public class ClientSenderWorker implements IFlowWorker {
 	@Override
 	public void deliver(Object object) {
 		Packet packet = (Packet) object;
-		ClientActionMsg clientActionMsg = packet.getClientActionMsg();
+		ClientActionMsg clientActionMsg = (ClientActionMsg) packet.getSendMsg();
 		synchronized (clientConnManager.getPendingQueue()) {
 			boolean isSuccess = ConnManager.getInstance().sendMsg(AddrManager.getInstance().getLeaderConn(),
 					clientActionMsg);
@@ -26,7 +27,8 @@ public class ClientSenderWorker implements IFlowWorker {
 				LOG.info("事务消息发送成功:{}", clientActionMsg.toString());
 				clientConnManager.getPendingQueue().add(packet);
 			} else {
-				LOG.info("事务消息发送成功:{}", clientActionMsg.toString());
+				LOG.info("事务消息发送失败:{}", clientActionMsg.toString());
+				// 构造失败响应，并且packet.notify
 			}
 		}
 	}

@@ -26,6 +26,7 @@ import com.sraft.core.role.worker.HeartbeatWorker;
 import com.sraft.core.role.worker.RequestVoteWorker;
 import com.sraft.core.role.worker.Workder;
 import com.sraft.core.session.Session;
+import com.sraft.enums.EnumNodeStatus;
 import com.sraft.enums.EnumRole;
 
 public class RoleController {
@@ -210,18 +211,31 @@ public class RoleController {
 					int leaderId = config.getSelfId();
 					long currentTerm = leader.getCurrentTerm();
 					StringBuilder sb = new StringBuilder();
-					Map<Integer, Boolean> nodeStatusMap = leader.getNodeStatusMap();
+					Map<Integer, EnumNodeStatus> nodeStatusMap = leader.getNodeStatusMap();
 					boolean isAllDead = true;
-					for (Entry<Integer, Boolean> entry : nodeStatusMap.entrySet()) {
+					for (Entry<Integer, EnumNodeStatus> entry : nodeStatusMap.entrySet()) {
 						int nodeId = entry.getKey();
 						ServerAddress serverAddress = config.getServerAddressMap().get(nodeId);
 						sb.append("[").append(serverAddress.getNodeId()).append("_").append(serverAddress.getHost())
 								.append(":").append(serverAddress.getPort());
-						if (entry.getValue()) {
-							sb.append(",alive]");
+						switch (entry.getValue()) {
+						case NODE_DEAD:
+							sb.append(",宕机]");
+							break;
+						case NODE_LOG_UNSYN:
+							sb.append(",未同步]");
 							isAllDead = false;
-						} else {
-							sb.append(",dead]");
+							break;
+						case NODE_LOG_SYNING:
+							sb.append(",正在同步]");
+							isAllDead = false;
+							break;
+						case NODE_NORMAL:
+							sb.append(",正常运行]");
+							isAllDead = false;
+							break;
+						default:
+							break;
 						}
 					}
 					if (isAllDead) {

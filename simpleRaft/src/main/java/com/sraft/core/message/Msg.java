@@ -35,8 +35,10 @@ public class Msg {
 	public static final int TYPE_REPLY_CLIENT_HEARTBEAT = 8;
 	public static final int TYPE_CLIENT_ACTION = 9;
 	public static final int TYPE_REPLY_CLIENT_ACTION = 10;
+	public static final int TYPE_APPEND_LOG = 11;
+	public static final int TYPE_REPLY_APPEND_LOG = 12;
 
-	// 异常码
+	// 客户端交互异常码
 	public static final int ERR_CODE_LOGIN_FOLLOWER = 1;
 	public static final int ERR_CODE_LOGIN_CANDIDATE = 2;
 	/**
@@ -51,6 +53,28 @@ public class Msg {
 	 * 角色已转换
 	 */
 	public static final int ERR_CODE_ROLE_CHANGED = 5;
+
+	// 领导者追加日志异常码
+	/**
+	 * 一致性检查失败，递减索引，再次发送
+	 */
+	public static final int ERR_CODE_LOG_CHECK_FALSE = 1;
+	/**
+	 * 空服务器，优先批量发送快照，再批量发送日志
+	 */
+	public static final int ERR_CODE_LOG_NULL_SERVER = 2;
+	/**
+	 * 接收端任期更大，领导者需要转换成跟随者，丢弃消息
+	 */
+	public static final int ERR_CODE_LOG_LARGE_TERM = 3;
+	/**
+	 * 接收端是候选者，更新为NODE_LOG_UNSYN（未同步）
+	 */
+	public static final int ERR_CODE_LOG_CANDIDATE = 4;
+	/**
+	 * 接收端是领导者，更新为NODE_LOG_UNSYN（未同步）
+	 */
+	public static final int ERR_CODE_LOG_LEADER = 5;
 
 	public Msg() {
 

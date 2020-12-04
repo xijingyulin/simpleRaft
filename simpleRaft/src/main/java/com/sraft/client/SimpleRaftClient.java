@@ -6,6 +6,7 @@ import com.sraft.common.DateHelper;
 import com.sraft.common.IdGenerateHelper;
 import com.sraft.core.message.ClientActionMsg;
 import com.sraft.core.message.Msg;
+import com.sraft.core.message.Packet;
 import com.sraft.core.message.ReplyClientActionMsg;
 
 public class SimpleRaftClient implements IClientTransaction {
@@ -29,7 +30,7 @@ public class SimpleRaftClient implements IClientTransaction {
 				e.printStackTrace();
 			}
 		}
-		ReplyClientActionMsg replyClientActionMsg = packet.getReplyClientActionMsg();
+		ReplyClientActionMsg replyClientActionMsg = (ReplyClientActionMsg) packet.getReplyMsg();
 	}
 
 	@Override
@@ -60,7 +61,7 @@ public class SimpleRaftClient implements IClientTransaction {
 		clientActionMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		clientActionMsg.setSessionId(clientConnManager.getSessionId());
 		clientActionMsg.setTransactionId(IdGenerateHelper.getNextSessionId());
-		packet.setClientActionMsg(clientActionMsg);
+		packet.setSendMsg(clientActionMsg);
 		switch (actionType) {
 		case TYPE_ACTION_ADD:
 			clientActionMsg.setValue(value);

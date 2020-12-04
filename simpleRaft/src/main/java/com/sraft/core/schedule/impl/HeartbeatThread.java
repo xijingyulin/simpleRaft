@@ -5,6 +5,12 @@ import org.slf4j.LoggerFactory;
 
 import com.sraft.core.role.Leader;
 
+/**
+ * 心跳是检测节点是否存活的唯一方法
+ * 
+ * @author 伍尚康-2020年12月4日
+ *
+ */
 public class HeartbeatThread implements Runnable {
 	private static Logger LOG = LoggerFactory.getLogger(HeartbeatThread.class);
 	private Leader leader;

@@ -68,8 +68,8 @@ public class Candidate extends AbstractRoles {
 	}
 
 	public void initVote() {
-		RequestVoteMsg requestVoteMsg = getRequestVoteMsg();
 		for (ServerAddress serverAddress : connAddressList) {
+			RequestVoteMsg requestVoteMsg = getRequestVoteMsg();
 			new Thread(new SendRequestVoteThread(requestVoteMsg, serverAddress)).start();
 		}
 	}

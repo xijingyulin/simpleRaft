@@ -7,10 +7,24 @@ import org.msgpack.annotation.Message;
 @Message
 public class AppendLogEntryMsg extends ServerMsg {
 	private long transactionId;
+	private int appendType;
 	private long prevLogIndex;
 	private long prevLogTerm;
 	private long leaderCommit;
 	private List<BaseLog> baseLogList;
+
+	/**
+	 * 空日志
+	 */
+	public static final int TYPE_APPEND_NULL = 1;
+	/**
+	 * 同步日志
+	 */
+	public static final int TYPE_APPEND_SYN = 2;
+	/**
+	 * 普通追加日志
+	 */
+	public static final int TYPE_APPEND_ORDINARY = 3;
 
 	public long getPrevLogIndex() {
 		return prevLogIndex;
@@ -55,21 +69,47 @@ public class AppendLogEntryMsg extends ServerMsg {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("msgId:");
-		builder.append(msgId);
-		builder.append(",term:");
-		builder.append(term);
+		builder.append("transactionId:");
+		builder.append(transactionId);
+		builder.append(",appendType:");
+		builder.append(appendType);
 		builder.append(",prevLogIndex:");
 		builder.append(prevLogIndex);
 		builder.append(",prevLogTerm:");
 		builder.append(prevLogTerm);
 		builder.append(",leaderCommit:");
 		builder.append(leaderCommit);
-		builder.append(",sendTime:");
-		builder.append(sendTime);
 		builder.append(",baseLogList:");
 		builder.append(baseLogList);
+		builder.append(",nodeId:");
+		builder.append(nodeId);
+		builder.append(",term:");
+		builder.append(term);
+		builder.append(",msgType:");
+		builder.append(msgType);
+		builder.append(",msgId:");
+		builder.append(msgId);
+		builder.append(",sendTime:");
+		builder.append(sendTime);
+		builder.append(",receviceTime:");
+		builder.append(receviceTime);
 		return builder.toString();
+	}
+
+	public long getTransactionId() {
+		return transactionId;
+	}
+
+	public void setTransactionId(long transactionId) {
+		this.transactionId = transactionId;
+	}
+
+	public int getAppendType() {
+		return appendType;
+	}
+
+	public void setAppendType(int appendType) {
+		this.appendType = appendType;
 	}
 
 }
