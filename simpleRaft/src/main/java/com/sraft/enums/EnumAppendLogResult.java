@@ -1,6 +1,6 @@
 package com.sraft.enums;
 
-public enum EnumReplyAppendLog {
+public enum EnumAppendLogResult {
 
 	/**
 	 * 空服务器，领导者收到空服务器回复，便会从头发送日志，优先发送快照
@@ -19,7 +19,7 @@ public enum EnumReplyAppendLog {
 
 	private final int initValue;
 
-	EnumReplyAppendLog(int initValue) {
+	EnumAppendLogResult(int initValue) {
 		this.initValue = initValue;
 	}
 

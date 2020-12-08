@@ -3,7 +3,7 @@ package com.sraft.core.data;
 public class ActionImpl implements IAction {
 
 	@Override
-	public boolean add(Statemachine statemachine, String key, String value) {
+	public boolean put(Statemachine statemachine, String key, String value) {
 		statemachine.getStatemachine().put(key, value);
 		return true;
 	}

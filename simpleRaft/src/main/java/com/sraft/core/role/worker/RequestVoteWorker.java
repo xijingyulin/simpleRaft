@@ -47,7 +47,7 @@ public class RequestVoteWorker extends Workder {
 		ReplyRequestVoteMsg reply = new ReplyRequestVoteMsg();
 		reply.setMsgType(Msg.TYPE_REPLY_REQUEST_VOTE);
 		reply.setMsgId(requestVoteMsg.getMsgId());
-		reply.setNodeId(role.getRoleController().getConfig().getSelfId());
+		reply.setNodeId(role.getSelfId());
 		reply.setTerm(role.getCurrentTerm());
 		reply.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 

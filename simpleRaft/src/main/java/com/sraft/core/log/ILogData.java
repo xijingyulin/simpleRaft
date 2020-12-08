@@ -23,12 +23,12 @@ public interface ILogData {
 	boolean append(String logDataPath, List<LogData> logDataList) throws IOException;
 
 	/**
-	 * 根据索引和任期查找日志
+	 * 根据索引查找日志
 	 * 
 	 * @throws IOException
 	 * 
 	 */
-	LogData getLogDataByIndex(String logDataPath, long logIndex, long logTerm) throws IOException;
+	LogData getLogDataByIndex(String logDataPath, long logIndex) throws IOException;
 
 	/**
 	 * 

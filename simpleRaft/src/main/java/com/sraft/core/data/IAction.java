@@ -1,7 +1,7 @@
 package com.sraft.core.data;
 
 public interface IAction {
-	boolean add(Statemachine statemachine, String key, String value);
+	boolean put(Statemachine statemachine, String key, String value);
 
 	boolean update(Statemachine statemachine, String key, String value);
 

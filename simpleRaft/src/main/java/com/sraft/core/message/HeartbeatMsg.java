@@ -9,7 +9,7 @@ import com.sraft.core.session.Session;
 
 @Message
 public class HeartbeatMsg extends ServerMsg {
-
+	private long leaderCommit;
 	private Map<Long, Session> sessionMap = new HashMap<Long, Session>();
 
 	public HeartbeatMsg() {
@@ -19,7 +19,11 @@ public class HeartbeatMsg extends ServerMsg {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("nodeId:");
+		builder.append("leaderCommit:");
+		builder.append(leaderCommit);
+		builder.append(",sessionMap:");
+		builder.append(sessionMap);
+		builder.append(",nodeId:");
 		builder.append(nodeId);
 		builder.append(",term:");
 		builder.append(term);
@@ -29,6 +33,8 @@ public class HeartbeatMsg extends ServerMsg {
 		builder.append(msgId);
 		builder.append(",sendTime:");
 		builder.append(sendTime);
+		builder.append(",receviceTime:");
+		builder.append(receviceTime);
 		return builder.toString();
 	}
 
@@ -38,6 +44,14 @@ public class HeartbeatMsg extends ServerMsg {
 
 	public void setSessionMap(Map<Long, Session> sessionMap) {
 		this.sessionMap = sessionMap;
+	}
+
+	public long getLeaderCommit() {
+		return leaderCommit;
+	}
+
+	public void setLeaderCommit(long leaderCommit) {
+		this.leaderCommit = leaderCommit;
 	}
 
 }

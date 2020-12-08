@@ -60,7 +60,7 @@ public class LogDataImpl implements ILogData {
 	}
 
 	@Override
-	public LogData getLogDataByIndex(String logDataPath, long logIndex, long logTerm) throws IOException {
+	public LogData getLogDataByIndex(String logDataPath, long logIndex) throws IOException {
 
 		LogData logData = null;
 		RandomAccessFile raf = null;
@@ -76,7 +76,7 @@ public class LogDataImpl implements ILogData {
 				long temLogTerm = raf.readLong();
 				int temLogType = raf.readInt();
 				long logLength = raf.readLong();
-				if (logIndex == temLogIndex && logTerm == temLogTerm) {
+				if (logIndex == temLogIndex) {
 					logData = new LogData();
 					logData.setLogIndex(temLogIndex);
 					logData.setLogTerm(temLogTerm);

@@ -45,6 +45,16 @@ public abstract class ALogEntryImpl implements ILogEntry {
 	protected Lock lock = new ReentrantLock();
 
 	/**
+	 * 有些操作需要重启状态机；比如，
+	 * 
+	 * （1）遍历文件的一致性检查；
+	 * 
+	 * （2）日志不为空，但上一条索引却是快照最后一条日志，需要清空日志
+	 * 
+	 */
+	protected volatile boolean isChanged = false;
+
+	/**
 	 * 每隔snapshotInterval小时，压缩一次日志，满足触发条件才能压缩
 	 */
 	protected int snapshotInterval = 10;
@@ -168,7 +178,7 @@ public abstract class ALogEntryImpl implements ILogEntry {
 
 	/**
 	 * 
-	 * 从文件中检查一致性
+	 * 遍历整个日志检查一致性
 	 * 
 	 * @param appendLogEntryMsg
 	 * @return
@@ -181,7 +191,10 @@ public abstract class ALogEntryImpl implements ILogEntry {
 		long prevLogIndex = appendLogEntryMsg.getPrevLogIndex();
 		long prevLogTerm = appendLogEntryMsg.getPrevLogTerm();
 		try {
-			logData = iLogData.getLogDataByIndex(logDataPath, prevLogIndex, prevLogTerm);
+			logData = iLogData.getLogDataByIndex(logDataPath, prevLogIndex);
+			if (logData != null && logData.getLogTerm() != prevLogTerm) {
+				logData = null;
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 			logData = null;
@@ -201,6 +214,26 @@ public abstract class ALogEntryImpl implements ILogEntry {
 		long prevLogIndex = appendLogEntryMsg.getPrevLogIndex();
 		long prevLogTerm = appendLogEntryMsg.getPrevLogTerm();
 		if (prevLogIndex == lastLogIndex && prevLogTerm == lastLogTerm) {
+			isConsistent = true;
+		} else {
+			return isConsistent;
+		}
+		return isConsistent;
+	}
+
+	/**
+	 * 一致性检查，是否和快照最后一条日志相同
+	 * 
+	 * 这种情况一般都是日志不为空，却一致性检查失败
+	 * 
+	 * @param appendLogEntryMsg
+	 * @return
+	 */
+	protected boolean consistencyCheckSnapshot(AppendLogEntryMsg appendLogEntryMsg) {
+		boolean isConsistent = false;
+		long prevLogIndex = appendLogEntryMsg.getPrevLogIndex();
+		long prevLogTerm = appendLogEntryMsg.getPrevLogTerm();
+		if (prevLogIndex == lastSnapIndex && prevLogTerm == lastSnapTerm) {
 			isConsistent = true;
 		} else {
 			return isConsistent;
@@ -270,5 +303,13 @@ public abstract class ALogEntryImpl implements ILogEntry {
 
 	public void setiLogData(ILogData iLogData) {
 		this.iLogData = iLogData;
+	}
+
+	public boolean isNullServer() {
+		if (lastLogData == null && lastSnapshot == null) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 }

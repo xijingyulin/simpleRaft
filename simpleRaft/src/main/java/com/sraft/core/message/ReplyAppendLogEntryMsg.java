@@ -6,6 +6,7 @@ import org.msgpack.annotation.Message;
 public class ReplyAppendLogEntryMsg extends ServerReply {
 	private long transactionId;
 	private int appendType;
+	private String value;
 
 	public ReplyAppendLogEntryMsg() {
 
@@ -34,6 +35,8 @@ public class ReplyAppendLogEntryMsg extends ServerReply {
 		builder.append(transactionId);
 		builder.append(",appendType:");
 		builder.append(appendType);
+		builder.append(",value:");
+		builder.append(value);
 		builder.append(",result:");
 		builder.append(result);
 		builder.append(",errCode:");
@@ -53,6 +56,14 @@ public class ReplyAppendLogEntryMsg extends ServerReply {
 		builder.append(",receviceTime:");
 		builder.append(receviceTime);
 		return builder.toString();
+	}
+
+	public String getValue() {
+		return value;
+	}
+
+	public void setValue(String value) {
+		this.value = value;
 	}
 
 }

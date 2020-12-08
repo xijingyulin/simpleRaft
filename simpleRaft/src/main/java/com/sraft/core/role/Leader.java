@@ -2,6 +2,7 @@ package com.sraft.core.role;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -18,7 +19,10 @@ import com.sraft.common.IdGenerateHelper;
 import com.sraft.common.flow.FlowHeader;
 import com.sraft.common.flow.IFlowWorker;
 import com.sraft.common.flow.NoFlowLineException;
+import com.sraft.core.log.LogData;
 import com.sraft.core.message.AppendLogEntryMsg;
+import com.sraft.core.message.BaseLog;
+import com.sraft.core.message.ClientActionMsg;
 import com.sraft.core.message.HeartbeatMsg;
 import com.sraft.core.message.Msg;
 import com.sraft.core.message.Packet;
@@ -40,12 +44,12 @@ public class Leader extends AbstractRoles implements ILeader {
 	/**
 	 * key:节点id value:收到每个节点的最新的消息
 	 */
-	private Map<Integer, Msg> lastReceiveMsgMap = new ConcurrentHashMap<Integer, Msg>();
+	//private Map<Integer, Msg> lastReceiveMsgMap = new ConcurrentHashMap<Integer, Msg>();
 
 	/**
 	 * key:节点id value:节点状态
 	 */
-	private Map<Integer, EnumNodeStatus> nodeStatusMap = new ConcurrentHashMap<Integer, EnumNodeStatus>();
+	//private Map<Integer, EnumNodeStatus> nodeStatusMap = new ConcurrentHashMap<Integer, EnumNodeStatus>();
 	/**
 	 * key:节点id value:日志状态
 	 */
@@ -54,14 +58,27 @@ public class Leader extends AbstractRoles implements ILeader {
 	/**
 	 * key:节点id value:发送的消息队列
 	 */
-	private Map<Integer, BlockingQueue<Packet>> pendingQueueMap = new ConcurrentHashMap<Integer, BlockingQueue<Packet>>();
+	//private Map<Integer, BlockingQueue<Packet>> pendingQueueMap = new ConcurrentHashMap<Integer, BlockingQueue<Packet>>();
 
+	/**
+	 * 追加日志的追加任务
+	 */
+	private BlockingQueue<AppendTask> pendingQueue = new LinkedBlockingQueue<AppendTask>();
+
+	/**
+	 * 状态为正常的节点过半，才是真的过半；待完善
+	 */
 	private volatile boolean isAliveOverHalf = true;
+
+	/**
+	 * key:节点id value:节点状态
+	 */
+	private Map<Integer, FollowStatus> followStatusMap = new ConcurrentHashMap<Integer, FollowStatus>();
 
 	public Leader(RoleController roleController) throws IOException {
 		super(EnumRole.LEADER, roleController);
 		connAddressList = roleController.getConfig().getConnAddressList();
-		IdGenerateHelper.initializeNextSession(roleController.getConfig().getSelfId());
+		IdGenerateHelper.initializeNextSession(selfId);
 	}
 
 	@Override
@@ -77,8 +94,6 @@ public class Leader extends AbstractRoles implements ILeader {
 			sendHeartbeat();
 			LOG.info("设置心跳超时");
 			startHeartbeat();
-			//LOG.info("发送空日志同步数据");
-			//sendEmptyLog();
 			LOG.info("设置会话超时");
 			startSessionTimeout();
 		} catch (Throwable e) {
@@ -88,23 +103,11 @@ public class Leader extends AbstractRoles implements ILeader {
 		}
 	}
 
-	public void sendEmptyLog() {
-		AppendLogEntryMsg emptyLogMsg = getEmptyLogMsg();
-		for (ServerAddress serverAddress : connAddressList) {
-			String actionWorker = APPEND_LOG_WORKER + serverAddress.getNodeId();
-			try {
-				FlowHeader.putProducts(actionWorker, emptyLogMsg);
-			} catch (NoFlowLineException e) {
-				e.printStackTrace();
-				LOG.error(e.getMessage(), e);
-			}
-		}
-	}
-
 	@Override
 	public void sendEmptyLog(int nodeId) {
 		AppendLogEntryMsg emptyLogMsg = getEmptyLogMsg();
-		String actionWorker = APPEND_LOG_WORKER + nodeId;
+		emptyLogMsg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_NULL);
+		String actionWorker = getAppendWorkerCard(nodeId);
 		try {
 			FlowHeader.putProducts(actionWorker, emptyLogMsg);
 		} catch (NoFlowLineException e) {
@@ -114,12 +117,12 @@ public class Leader extends AbstractRoles implements ILeader {
 	}
 
 	public AppendLogEntryMsg getEmptyLogMsg() {
+
 		AppendLogEntryMsg msg = new AppendLogEntryMsg();
-		msg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_NULL);
 		msg.setLeaderCommit(roleController.getiStatement().getLastCommitId());
 		msg.setMsgId(IdGenerateHelper.getMsgId());
 		msg.setMsgType(Msg.TYPE_APPEND_LOG);
-		msg.setNodeId(roleController.getConfig().getSelfId());
+		msg.setNodeId(selfId);
 		msg.setPrevLogIndex(roleController.getiLogEntry().getLastLogIndex());
 		msg.setPrevLogTerm(roleController.getiLogEntry().getLastLogTerm());
 		msg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
@@ -128,26 +131,97 @@ public class Leader extends AbstractRoles implements ILeader {
 		return msg;
 	}
 
+	public BaseLog getBaseLog(ClientActionMsg clientActionMsg) {
+		BaseLog baseLog = new BaseLog();
+		baseLog.setClientSessionId(clientActionMsg.getSessionId());
+		baseLog.setClientTransactionId(clientActionMsg.getTransactionId());
+		baseLog.setCreateTime(clientActionMsg.getSendTime());
+		baseLog.setKey(clientActionMsg.getKey());
+		baseLog.setLeaderId(selfId);
+		baseLog.setLogIndex(getRoleController().getiLogEntry().getLastLogIndex() + 1);
+		baseLog.setLogTerm(getCurrentTerm());
+		baseLog.setLogType(clientActionMsg.getActionType());
+		baseLog.setSraftTransactionId(IdGenerateHelper.getNextSessionId());
+		baseLog.setUpdateTime(clientActionMsg.getSendTime());
+		baseLog.setValue(clientActionMsg.getValue());
+		return baseLog;
+	}
+
+	/**
+	 * 提交追加日志任务
+	 * 
+	 * @param appendTask
+	 */
+	public void submitAppendTask(AppendTask appendTask) {
+		pendingQueue.add(appendTask);
+		appendTask.setAllAppendNum(connAddressList.size() + 1);
+		BaseLog baseLog = appendTask.getBaseLog();
+		for (int i = 0; i <= connAddressList.size(); i++) {
+			int nodeId = -1;
+			// 发给领导者自己
+			if (i == connAddressList.size()) {
+				nodeId = selfId;
+			} else {
+				nodeId = connAddressList.get(i).getNodeId();
+			}
+			AppendLogEntryMsg emptyMsg = getEmptyLogMsg();
+			emptyMsg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_ORDINARY);
+			List<BaseLog> baseLogList = new ArrayList<BaseLog>();
+			baseLogList.add(baseLog);
+			emptyMsg.setBaseLogList(baseLogList);
+			String appendWorker = getAppendWorkerCard(nodeId);
+			try {
+				FlowHeader.putProducts(appendWorker, emptyMsg);
+			} catch (NoFlowLineException e) {
+				e.printStackTrace();
+				LOG.error(e.getMessage(), e);
+			}
+		}
+
+	}
+
 	public void initNodeStatus() {
 		for (ServerAddress serverAddress : connAddressList) {
-			nodeStatusMap.put(serverAddress.getNodeId(), EnumNodeStatus.NODE_DEAD);
-			//logStatusMap.put(serverAddress.getNodeId(), EnumLogStatus.LOG_INCONSISTENCY);
+			int nodeId = serverAddress.getNodeId();
+			FollowStatus followStatus = new FollowStatus(nodeId);
+			followStatus.setStatus(EnumNodeStatus.NODE_DEAD);
+			followStatus.setMatchIndex(0);
+			followStatus.setPendingQueue(new LinkedBlockingQueue<Packet>());
+			followStatusMap.put(nodeId, followStatus);
 		}
+	}
+
+	public static String getAppendWorkerCard(int nodeId) {
+		return APPEND_LOG_WORKER + nodeId;
+	}
+
+	public static String getHeartbeatWorkerCard(int nodeId) {
+		return HEARTBEAT_WORKER + nodeId;
 	}
 
 	/**
 	 * 给每个跟随者分配专门的消息通道
 	 */
 	public void assignWorker() {
-		for (ServerAddress serverAddress : connAddressList) {
-			String heartbeatWorkerCard = HEARTBEAT_WORKER + serverAddress.getNodeId();
-			IFlowWorker heartbeatWorker = new SendHeartbeartWorker(serverAddress, this);
-			FlowHeader.employ(heartbeatWorkerCard, heartbeatWorker);
+		for (int i = 0; i <= connAddressList.size(); i++) {
+			int nodeId = -1;
+			ServerAddress serverAddress = null;
+			boolean isLeader = false;
+			if (i == connAddressList.size()) {
+				serverAddress = null;
+				nodeId = selfId;
+				isLeader = true;
+			} else {
+				// 领导者自己不需心跳通道
+				serverAddress = connAddressList.get(i);
+				nodeId = serverAddress.getNodeId();
+				String heartbeatWorkerCard = getHeartbeatWorkerCard(nodeId);
+				IFlowWorker heartbeatWorker = new SendHeartbeartWorker(serverAddress, this);
+				FlowHeader.employ(heartbeatWorkerCard, heartbeatWorker);
 
-			BlockingQueue<Packet> pendingQueue = new LinkedBlockingQueue<Packet>();
-			pendingQueueMap.put(serverAddress.getNodeId(), pendingQueue);
-			String actionWorkerCard = APPEND_LOG_WORKER + serverAddress.getNodeId();
-			IFlowWorker actionWorker = new SendAppendLogWorker(serverAddress, this);
+			}
+			String actionWorkerCard = getAppendWorkerCard(nodeId);
+			IFlowWorker actionWorker = new SendAppendLogWorker(null, this, isLeader);
 			FlowHeader.employ(actionWorkerCard, actionWorker);
 		}
 	}
@@ -156,11 +230,16 @@ public class Leader extends AbstractRoles implements ILeader {
 	 * 删除每个跟随者的消息通道
 	 */
 	public void fireWorker() {
-		for (ServerAddress serverAddress : connAddressList) {
-			String heartbeatWorkerCard = HEARTBEAT_WORKER + serverAddress.getNodeId();
-			FlowHeader.unEmploy(heartbeatWorkerCard);
-
-			String actionWorkerCard = APPEND_LOG_WORKER + serverAddress.getNodeId();
+		for (int i = 0; i <= connAddressList.size(); i++) {
+			int nodeId = -1;
+			if (i == connAddressList.size()) {
+				nodeId = selfId;
+			} else {
+				nodeId = connAddressList.get(i).getNodeId();
+				String heartbeatWorkerCard = getHeartbeatWorkerCard(nodeId);
+				FlowHeader.unEmploy(heartbeatWorkerCard);
+			}
+			String actionWorkerCard = getAppendWorkerCard(nodeId);
 			FlowHeader.unEmploy(actionWorkerCard);
 		}
 	}
@@ -169,7 +248,7 @@ public class Leader extends AbstractRoles implements ILeader {
 	public void sendHeartbeat() {
 		for (ServerAddress serverAddress : connAddressList) {
 			HeartbeatMsg heartBeartMsg = getHeartbeatMsg();
-			String workerCard = HEARTBEAT_WORKER + serverAddress.getNodeId();
+			String workerCard = getHeartbeatWorkerCard(serverAddress.getNodeId());
 			try {
 				FlowHeader.putProducts(workerCard, heartBeartMsg);
 			} catch (NoFlowLineException e) {
@@ -182,7 +261,7 @@ public class Leader extends AbstractRoles implements ILeader {
 		HeartbeatMsg msg = new HeartbeatMsg();
 		msg.setMsgId(IdGenerateHelper.getMsgId());
 		msg.setMsgType(Msg.TYPE_HEARTBEAT);
-		msg.setNodeId(roleController.getConfig().getSelfId());
+		msg.setNodeId(selfId);
 		msg.setTerm(getCurrentTerm());
 		msg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		msg.getSessionMap().putAll(roleController.getSessionMap());
@@ -221,10 +300,6 @@ public class Leader extends AbstractRoles implements ILeader {
 		return connAddressList;
 	}
 
-	public Map<Integer, Msg> getLastReceiveMsgMap() {
-		return lastReceiveMsgMap;
-	}
-
 	public boolean isAliveOverHalf() {
 		return isAliveOverHalf;
 	}
@@ -248,7 +323,8 @@ public class Leader extends AbstractRoles implements ILeader {
 			for (ServerAddress serverAddress : connAddressList) {
 				isAlive = false;
 				int nodeId = serverAddress.getNodeId();
-				Msg lastMsg = lastReceiveMsgMap.get(nodeId);
+				FollowStatus followStatus = followStatusMap.get(nodeId);
+				Msg lastMsg = followStatus.getLastReceviceMsg();
 				if (lastMsg != null) {
 					long receviceTime = lastMsg.getReceviceTime();
 					if (receviceTime >= minHeartTime) {
@@ -256,9 +332,16 @@ public class Leader extends AbstractRoles implements ILeader {
 					}
 				}
 				if (isAlive) {
-					countAlive++;
+					if (followStatus.getStatus() == EnumNodeStatus.NODE_DEAD
+							|| followStatus.getStatus() == EnumNodeStatus.NODE_LOG_UNSYN) {
+						followStatus.setStatus(EnumNodeStatus.NODE_LOG_SYNING);
+						sendEmptyLog(nodeId);
+					} else if (followStatus.getStatus() == EnumNodeStatus.NODE_NORMAL) {
+						countAlive++;
+					}
+				} else {
+					followStatus.setStatus(EnumNodeStatus.NODE_DEAD);
 				}
-				updateNodeStatus(nodeId, isAlive);
 			}
 			if (countAlive > half) {
 				isAliveOverHalf = true;
@@ -271,57 +354,25 @@ public class Leader extends AbstractRoles implements ILeader {
 		}
 	}
 
-	/**
-	 * 心跳专用，心跳超时，才会设为EnumNodeStatus.NODE_DEAD
-	 * 
-	 * @param nodeId
-	 * @param isAlive
-	 */
-	public void updateNodeStatus(int nodeId, boolean isAlive) {
-		synchronized (nodeStatusMap) {
-			EnumNodeStatus status = nodeStatusMap.get(nodeId);
-			if (isAlive) {
-				if (status == EnumNodeStatus.NODE_DEAD || status == EnumNodeStatus.NODE_LOG_UNSYN) {
-					nodeStatusMap.put(nodeId, EnumNodeStatus.NODE_LOG_SYNING);
-					sendEmptyLog(nodeId);
-				}
-			} else {
-				nodeStatusMap.put(nodeId, EnumNodeStatus.NODE_DEAD);
-				BlockingQueue<Packet> pendingQueue = pendingQueueMap.get(nodeId);
-				if (pendingQueue != null && !pendingQueue.isEmpty()) {
-					synchronized (pendingQueue) {
-						try {
-							Packet packet = pendingQueue.take();
-							packet.notify();
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
+	public void updateAppendTask(boolean isSuccess) {
+		synchronized (pendingQueue) {
+			AppendTask appendTask = pendingQueue.peek();
+			if (appendTask != null) {
+				if (isSuccess) {
+					appendTask.increSuccessNum();
+					if (appendTask.isOverHalfSuccess()) {
+						appendTask.notify();
+						pendingQueue.clear();
+					}
+				} else {
+					appendTask.increFailNum();
+					if (appendTask.isOverHalfFail()) {
+						appendTask.notify();
+						pendingQueue.clear();
 					}
 				}
 			}
 		}
-	}
-
-	/**
-	 * 心跳有效时才能更新
-	 * 
-	 * @param nodeId
-	 * @param newStatus
-	 */
-	public void updateNodeStatus(int nodeId, EnumNodeStatus newStatus) {
-		synchronized (nodeStatusMap) {
-			if (nodeStatusMap.get(nodeId) != EnumNodeStatus.NODE_DEAD) {
-				nodeStatusMap.put(nodeId, newStatus);
-			}
-		}
-	}
-
-	public EnumNodeStatus getNodeStatus(int nodeId) {
-		return nodeStatusMap.get(nodeId);
-	}
-
-	public Map<Integer, EnumNodeStatus> getNodeStatusMap() {
-		return nodeStatusMap;
 	}
 
 	/**
@@ -370,7 +421,12 @@ public class Leader extends AbstractRoles implements ILeader {
 		}
 	}
 
-	public Map<Integer, BlockingQueue<Packet>> getPendingQueueMap() {
-		return pendingQueueMap;
+	public Map<Integer, FollowStatus> getFollowStatusMap() {
+		return followStatusMap;
 	}
+
+	public BlockingQueue<AppendTask> getPendingQueue() {
+		return pendingQueue;
+	}
+
 }

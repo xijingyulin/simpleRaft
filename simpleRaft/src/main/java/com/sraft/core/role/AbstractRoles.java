@@ -9,6 +9,11 @@ import com.sraft.enums.EnumRole;
 public abstract class AbstractRoles extends Thread implements IRole {
 	protected RoleController roleController = null;
 
+	/**
+	 * 本身id
+	 */
+	protected int selfId;
+
 	//状态数据
 	protected EnumRole playRole = EnumRole.FOLLOWER;
 	protected AtomicLong currentTerm = new AtomicLong(0);
@@ -31,6 +36,7 @@ public abstract class AbstractRoles extends Thread implements IRole {
 
 	public AbstractRoles(EnumRole playRole, RoleController roleController) throws IOException {
 		this.playRole = playRole;
+		this.selfId = roleController.getConfig().getSelfId();
 		this.roleController = roleController;
 		// 恢复任期
 		currentTerm.set(roleController.getTermAndVotedForService().retrieveTerm());
@@ -112,5 +118,9 @@ public abstract class AbstractRoles extends Thread implements IRole {
 
 	public boolean isChangedRole() {
 		return isChangedRole;
+	}
+
+	public int getSelfId() {
+		return selfId;
 	}
 }

@@ -30,7 +30,7 @@ public interface ISnapshot {
 	List<Snapshot> getAllSnapshot(String snapshotPath);
 
 	/**
-	 * 生成快照
+	 * 生成快照，最后一条快照是记录最后的任期和索引
 	 * 
 	 * @param iLogData
 	 * @param logDataDir

@@ -58,23 +58,29 @@ public class Msg {
 	/**
 	 * 一致性检查失败，递减索引，再次发送
 	 */
-	public static final int ERR_CODE_LOG_CHECK_FALSE = 1;
+	public static final int ERR_CODE_LOG_CHECK_FALSE = 6;
 	/**
 	 * 空服务器，优先批量发送快照，再批量发送日志
 	 */
-	public static final int ERR_CODE_LOG_NULL_SERVER = 2;
+	public static final int ERR_CODE_LOG_NULL_SERVER = 7;
 	/**
 	 * 接收端任期更大，领导者需要转换成跟随者，丢弃消息
 	 */
-	public static final int ERR_CODE_LOG_LARGE_TERM = 3;
+	public static final int ERR_CODE_LOG_LARGE_TERM = 8;
+
 	/**
 	 * 接收端是候选者，更新为NODE_LOG_UNSYN（未同步）
 	 */
-	public static final int ERR_CODE_LOG_CANDIDATE = 4;
+	public static final int ERR_CODE_LOG_CANDIDATE = 9;
 	/**
 	 * 接收端是领导者，更新为NODE_LOG_UNSYN（未同步）
 	 */
-	public static final int ERR_CODE_LOG_LEADER = 5;
+	public static final int ERR_CODE_LOG_LEADER = 10;
+
+	/**
+	 * 日志追加失败，一般由于过半节点宕机，或者内部异常引起
+	 */
+	public static final int ERR_CODE_LOG_APPEND_FALSE = 11;
 
 	public Msg() {
 

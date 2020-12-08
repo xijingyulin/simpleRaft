@@ -41,7 +41,7 @@ public class HeartbeatWorker extends Workder {
 		ReplyHeartbeatMsg replyHeartbeatMsg = new ReplyHeartbeatMsg();
 		replyHeartbeatMsg.setMsgId(IdGenerateHelper.getMsgId());
 		replyHeartbeatMsg.setMsgType(Msg.TYPE_REPLY_HEARTBEAT);
-		replyHeartbeatMsg.setNodeId(role.getRoleController().getConfig().getSelfId());
+		replyHeartbeatMsg.setNodeId(role.getSelfId());
 		replyHeartbeatMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		replyHeartbeatMsg.setTerm(role.getCurrentTerm());
 		if (isPassTerm) {
@@ -87,7 +87,7 @@ public class HeartbeatWorker extends Workder {
 			Leader leader = (Leader) role;
 			int result = replyHeartbeatMsg.getResult();
 			if (result == Msg.RETURN_STATUS_OK) {
-				leader.getLastReceiveMsgMap().put(replyHeartbeatMsg.getNodeId(), replyHeartbeatMsg);
+				leader.getFollowStatusMap().get(replyHeartbeatMsg.getNodeId()).setLastReceviceMsg(replyHeartbeatMsg);
 			} else {
 				long fromTerm = replyHeartbeatMsg.getTerm();
 				// 是否需要更新任期，比自己大就要更新

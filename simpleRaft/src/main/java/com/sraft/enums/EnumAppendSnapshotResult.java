@@ -1,6 +1,6 @@
 package com.sraft.enums;
 
-public enum EnumReplyAppendSnapshot {
+public enum EnumAppendSnapshotResult {
 
 	SNAPSHOT_APPEND_TRUE(1),
 
@@ -8,7 +8,7 @@ public enum EnumReplyAppendSnapshot {
 
 	private final int initValue;
 
-	EnumReplyAppendSnapshot(int initValue) {
+	EnumAppendSnapshotResult(int initValue) {
 		this.initValue = initValue;
 	}
 

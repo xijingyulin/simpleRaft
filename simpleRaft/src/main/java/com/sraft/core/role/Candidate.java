@@ -38,7 +38,7 @@ public class Candidate extends AbstractRoles {
 	@Override
 	public void run() {
 		try {
-			updateVotedFor(roleController.getConfig().getSelfId());
+			updateVotedFor(selfId);
 			LOG.info("激活消息接收通道");
 			enableWorker(this);
 			LOG.info("连接其它服务器");
@@ -78,7 +78,7 @@ public class Candidate extends AbstractRoles {
 		RequestVoteMsg requestVoteMsg = new RequestVoteMsg();
 		requestVoteMsg.setMsgType(Msg.TYPE_REQUEST_VOTE);
 		requestVoteMsg.setMsgId(IdGenerateHelper.getMsgId());
-		requestVoteMsg.setNodeId(roleController.getConfig().getSelfId());
+		requestVoteMsg.setNodeId(selfId);
 		requestVoteMsg.setTerm(currentTerm.get());
 		requestVoteMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		requestVoteMsg.setLastLogIndex(roleController.getiLogEntry().getLastLogIndex());

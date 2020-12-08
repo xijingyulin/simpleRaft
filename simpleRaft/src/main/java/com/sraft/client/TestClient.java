@@ -7,7 +7,7 @@ public class TestClient {
 		SimpleRaftClient client;
 		try {
 			client = new SimpleRaftClient(address);
-			client.add("abc", "def");
+			client.put("abc", "def");
 
 		} catch (Exception e) {
 			e.printStackTrace();

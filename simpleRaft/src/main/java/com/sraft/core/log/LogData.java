@@ -44,10 +44,16 @@ public class LogData extends BaseLog {
 
 	public static final int FIXED_BYTE_LENGTH = 80;
 
-	public final static int LOG_ADD = 1;
+	public final static int LOG_PUT = 1;
 	public final static int LOG_UPDATE = 2;
 	public final static int LOG_DEL = 3;
+	/**
+	 * 不需写入日志
+	 */
 	public final static int LOG_GET = 4;
+	/**
+	 * 不需写入日志
+	 */
 	public final static int LOG_NULL = 5;
 
 	public long getLogLength() {
@@ -138,4 +144,19 @@ public class LogData extends BaseLog {
 		this.offset = offset;
 	}
 
+	public BaseLog getBaseLog() {
+		BaseLog baseLog = new BaseLog();
+		baseLog.setClientSessionId(clientSessionId);
+		baseLog.setClientTransactionId(clientTransactionId);
+		baseLog.setCreateTime(createTime);
+		baseLog.setKey(key);
+		baseLog.setLeaderId(leaderId);
+		baseLog.setLogIndex(logIndex);
+		baseLog.setLogTerm(logTerm);
+		baseLog.setLogType(logType);
+		baseLog.setSraftTransactionId(sraftTransactionId);
+		baseLog.setUpdateTime(updateTime);
+		baseLog.setValue(value);
+		return baseLog;
+	}
 }

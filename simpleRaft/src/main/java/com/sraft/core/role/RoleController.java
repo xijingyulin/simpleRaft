@@ -26,7 +26,6 @@ import com.sraft.core.role.worker.HeartbeatWorker;
 import com.sraft.core.role.worker.RequestVoteWorker;
 import com.sraft.core.role.worker.Workder;
 import com.sraft.core.session.Session;
-import com.sraft.enums.EnumNodeStatus;
 import com.sraft.enums.EnumRole;
 
 public class RoleController {
@@ -211,14 +210,14 @@ public class RoleController {
 					int leaderId = config.getSelfId();
 					long currentTerm = leader.getCurrentTerm();
 					StringBuilder sb = new StringBuilder();
-					Map<Integer, EnumNodeStatus> nodeStatusMap = leader.getNodeStatusMap();
+					Map<Integer, FollowStatus> nodeStatusMap = leader.getFollowStatusMap();
 					boolean isAllDead = true;
-					for (Entry<Integer, EnumNodeStatus> entry : nodeStatusMap.entrySet()) {
+					for (Entry<Integer, FollowStatus> entry : nodeStatusMap.entrySet()) {
 						int nodeId = entry.getKey();
 						ServerAddress serverAddress = config.getServerAddressMap().get(nodeId);
 						sb.append("[").append(serverAddress.getNodeId()).append("_").append(serverAddress.getHost())
 								.append(":").append(serverAddress.getPort());
-						switch (entry.getValue()) {
+						switch (entry.getValue().getStatus()) {
 						case NODE_DEAD:
 							sb.append(",宕机]");
 							break;

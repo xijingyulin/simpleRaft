@@ -77,8 +77,16 @@ public interface ILogEntry {
 	 * @return
 	 */
 	boolean doGenSnapshot();
-	
+
 	long getLastLogIndex();
-	
+
 	long getLastLogTerm();
+
+	LogData getLogDataByIndex(long logIndex);
+
+	long getLastSnapIndex();
+
+	long getLastSnapTerm();
+
+	boolean isNeedRebootStatemachine();
 }

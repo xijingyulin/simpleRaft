@@ -27,7 +27,7 @@ public class StatemachineManager implements IStatement {
 		init();
 	}
 
-	private void init() {
+	public void init() {
 		List<Snapshot> allSnapshotList = iLogEntry.getAllSnapshot();
 		List<LogData> allLogDataList = null;
 		try {
@@ -38,10 +38,14 @@ public class StatemachineManager implements IStatement {
 		}
 
 		if (allSnapshotList != null && allSnapshotList.size() > 0) {
-			for (Snapshot snapshot : allSnapshotList) {
+			for (int i = 0; i < allSnapshotList.size(); i++) {
+				Snapshot snapshot = allSnapshotList.get(i);
 				try {
-					iAction.add(statemachine, new String(snapshot.getbKey(), "UTF-8"),
-							new String(snapshot.getbValue(), "UTF-8"));
+					// 最后一条快照是记录最后的任期和索引
+					if (i < allSnapshotList.size() - 1) {
+						iAction.put(statemachine, new String(snapshot.getbKey(), "UTF-8"),
+								new String(snapshot.getbValue(), "UTF-8"));
+					}
 					updateApply(snapshot.getLogIndex());
 				} catch (UnsupportedEncodingException e) {
 					e.printStackTrace();
@@ -52,7 +56,7 @@ public class StatemachineManager implements IStatement {
 		}
 		if (allLogDataList != null && allLogDataList.size() > 0) {
 			for (LogData logData : allLogDataList) {
-				iAction.add(statemachine, logData.getKey(), logData.getValue());
+				iAction.put(statemachine, logData.getKey(), logData.getValue());
 				updateApply(logData.getLogIndex());
 			}
 			allLogDataList.clear();

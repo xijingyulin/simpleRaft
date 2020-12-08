@@ -3,7 +3,6 @@ package com.sraft.core.log;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -119,12 +118,22 @@ public class SnapshotImpl implements ISnapshot {
 		compressLogDataList.addAll(iLogData.getLogDataByCount(oldLogDataPath, compressCount));
 		// 写入状态机，过滤垃圾数据
 		Map<String, Snapshot> oldStatemachine = new LinkedHashMap<String, Snapshot>();
-		for (Snapshot snapshot : allSnapshot) {
-			String key = new String(snapshot.getbKey(), "UTF-8");
-			oldStatemachine.put(key, snapshot);
+		// 快照最后一条数据，是用来标识快照最后一条日志的索引和任期
+		Snapshot lastSnapshot = null;
+		for (int i = 0; i < allSnapshot.size(); i++) {
+			Snapshot snapshot = allSnapshot.get(i);
+			if (i == allSnapshot.size() - 1) {
+				lastSnapshot = snapshot;
+			} else {
+				String key = new String(snapshot.getbKey(), "UTF-8");
+				oldStatemachine.put(key, snapshot);
+			}
 		}
-		for (LogData logData : compressLogDataList) {
+		for (int i = 0; i < compressLogDataList.size(); i++) {
+			LogData logData = compressLogDataList.get(i);
 			String newKey = logData.getKey();
+			int type = logData.getLogType();
+
 			Snapshot snapshot = new Snapshot();
 			snapshot.setLogIndex(logData.getLogIndex());
 			snapshot.setLogTerm(logData.getLogTerm());
@@ -135,8 +144,28 @@ public class SnapshotImpl implements ISnapshot {
 			long snapLogLen = Snapshot.FIXED_BYTE_LENGTH + logData.getKeyLength() + logData.getValueLength();
 			snapshot.setLogLength(snapLogLen);
 
-			oldStatemachine.remove(newKey);
-			oldStatemachine.put(newKey, snapshot);
+			if (type == LogData.LOG_PUT) {
+				oldStatemachine.remove(newKey);
+				oldStatemachine.put(newKey, snapshot);
+			} else if (type == LogData.LOG_DEL) {
+				oldStatemachine.remove(newKey);
+			} else if (type == LogData.LOG_UPDATE) {
+				oldStatemachine.remove(newKey);
+				oldStatemachine.put(newKey, snapshot);
+			}
+			if (i == compressLogDataList.size() - 1) {
+				// 记录最后一条日志的索引和任期
+				lastSnapshot = new Snapshot();
+				lastSnapshot.setLogIndex(logData.getLogIndex());
+				lastSnapshot.setLogTerm(logData.getLogTerm());
+				lastSnapshot.setbKey("".getBytes("UTF-8"));
+				lastSnapshot.setKeyLength(lastSnapshot.getbKey().length);
+				lastSnapshot.setbValue("".getBytes("UTF-8"));
+				lastSnapshot.setValueLength(lastSnapshot.getbValue().length);
+				long lastSnapshotLen = Snapshot.FIXED_BYTE_LENGTH + lastSnapshot.getKeyLength()
+						+ lastSnapshot.getValueLength();
+				lastSnapshot.setLogLength(lastSnapshotLen);
+			}
 		}
 		if (oldStatemachine.size() > 0) {
 			// 快照以第一条快照的索引ID作为文件名
@@ -168,7 +197,14 @@ public class SnapshotImpl implements ISnapshot {
 					raf.writeInt(snapshot.getValueLength());
 					raf.write(snapshot.getbValue());
 				}
-
+				raf.writeLong(lastSnapshot.getLogIndex());
+				raf.writeLong(lastSnapshot.getLogTerm());
+				raf.writeLong(lastSnapshot.getLogLength());
+				raf.writeInt(lastSnapshot.getKeyLength());
+				raf.write(lastSnapshot.getbKey());
+				raf.writeInt(lastSnapshot.getValueLength());
+				raf.write(lastSnapshot.getbValue());
+				
 				oldStatemachine.clear();
 				//删除被压缩的日志
 				raf2 = new RandomAccessFile(oldLogDataPath, "r");

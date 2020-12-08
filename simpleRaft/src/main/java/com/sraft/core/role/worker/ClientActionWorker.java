@@ -9,9 +9,12 @@ import org.slf4j.LoggerFactory;
 import com.sraft.client.ClientConnManager;
 import com.sraft.common.DateHelper;
 import com.sraft.common.IdGenerateHelper;
+import com.sraft.core.log.LogData;
+import com.sraft.core.message.BaseLog;
 import com.sraft.core.message.ClientActionMsg;
 import com.sraft.core.message.Msg;
 import com.sraft.core.message.ReplyClientActionMsg;
+import com.sraft.core.role.AppendTask;
 import com.sraft.core.role.Candidate;
 import com.sraft.core.role.Follower;
 import com.sraft.core.role.Leader;
@@ -73,12 +76,42 @@ public class ClientActionWorker extends Workder {
 			replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
 			replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_CANDIDATE);
 		} else if (role instanceof Leader) {
-			Leader leader = (Leader) role;
-			
+			if (!isUpdate) {
+				replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+				replyClientActionMsg.setErrCode(Msg.ERR_CODE_SESSION_TIMEOUT);
+			} else {
+				Leader leader = (Leader) role;
+				if (leader.isAliveOverHalf()) {
+					replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+					replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR);
+				} else {
+					// 注意读操作，不需累计索引
+					BaseLog baseLog = leader.getBaseLog(clientActionMsg);
+					AppendTask appendTask = new AppendTask(baseLog);
+					synchronized (appendTask) {
+						leader.submitAppendTask(appendTask);
+						try {
+							appendTask.wait();
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
+					if (appendTask.isOverHalfSuccess()) {
+						replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
+						if (baseLog.getLogType() == LogData.LOG_GET) {
+							replyClientActionMsg.setValue((String) appendTask.getResult());
+						}
+					} else {
+						replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+						replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOG_APPEND_FALSE);
+					}
+				}
+			}
 		}
+		ctx.writeAndFlush(replyClientActionMsg);
 	}
 
 	public void dealReplyClientActionMsg(ReplyClientActionMsg replyClientActionMsg) {
-		
+
 	}
 }

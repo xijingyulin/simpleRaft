@@ -105,7 +105,7 @@ public class ClientConnManager {
 	 * 重连
 	 */
 	public void reConnected() {
-		//清空缓存
+		//清空缓存队列
 		sendLoginMsg();
 	}
 

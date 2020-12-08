@@ -4,6 +4,7 @@ import java.util.Date;
 
 import com.sraft.common.DateHelper;
 import com.sraft.common.IdGenerateHelper;
+import com.sraft.core.log.LogData;
 import com.sraft.core.message.ClientActionMsg;
 import com.sraft.core.message.Msg;
 import com.sraft.core.message.Packet;
@@ -19,9 +20,9 @@ public class SimpleRaftClient implements IClientTransaction {
 	}
 
 	@Override
-	public void add(String key, String value) {
+	public void put(String key, String value) {
 		clientConnManager.isUseFullSyn();
-		Packet packet = getPacket(TYPE_ACTION_ADD, key, value);
+		Packet packet = getPacket(LogData.LOG_PUT, key, value);
 		clientConnManager.sendActionMsg(packet);
 		synchronized (packet) {
 			try {
@@ -63,15 +64,15 @@ public class SimpleRaftClient implements IClientTransaction {
 		clientActionMsg.setTransactionId(IdGenerateHelper.getNextSessionId());
 		packet.setSendMsg(clientActionMsg);
 		switch (actionType) {
-		case TYPE_ACTION_ADD:
+		case LogData.LOG_PUT:
 			clientActionMsg.setValue(value);
 			break;
-		case TYPE_ACTION_UPDATE:
+		case LogData.LOG_UPDATE:
 			clientActionMsg.setValue(value);
 			break;
-		case TYPE_ACTION_REMOVE:
+		case LogData.LOG_DEL:
 			break;
-		case TYPE_ACTION_GET:
+		case LogData.LOG_GET:
 			break;
 		default:
 			break;
