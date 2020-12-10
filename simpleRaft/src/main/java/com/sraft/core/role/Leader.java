@@ -21,6 +21,7 @@ import com.sraft.common.flow.IFlowWorker;
 import com.sraft.common.flow.NoFlowLineException;
 import com.sraft.core.log.LogData;
 import com.sraft.core.message.AppendLogEntryMsg;
+import com.sraft.core.message.AppendSnapshotMsg;
 import com.sraft.core.message.BaseLog;
 import com.sraft.core.message.ClientActionMsg;
 import com.sraft.core.message.HeartbeatMsg;
@@ -41,25 +42,6 @@ public class Leader extends AbstractRoles implements ILeader {
 	private List<ServerAddress> connAddressList;
 	public static final String HEARTBEAT_WORKER = "HEARTBEAT_WORK:";
 	public static final String APPEND_LOG_WORKER = "APPEND_LOG_WORKER:";
-	/**
-	 * key:节点id value:收到每个节点的最新的消息
-	 */
-	//private Map<Integer, Msg> lastReceiveMsgMap = new ConcurrentHashMap<Integer, Msg>();
-
-	/**
-	 * key:节点id value:节点状态
-	 */
-	//private Map<Integer, EnumNodeStatus> nodeStatusMap = new ConcurrentHashMap<Integer, EnumNodeStatus>();
-	/**
-	 * key:节点id value:日志状态
-	 */
-	//private Map<Integer, EnumLogStatus> logStatusMap = new ConcurrentHashMap<Integer, EnumLogStatus>();
-
-	/**
-	 * key:节点id value:发送的消息队列
-	 */
-	//private Map<Integer, BlockingQueue<Packet>> pendingQueueMap = new ConcurrentHashMap<Integer, BlockingQueue<Packet>>();
-
 	/**
 	 * 追加日志的追加任务
 	 */
@@ -107,6 +89,9 @@ public class Leader extends AbstractRoles implements ILeader {
 	public void sendEmptyLog(int nodeId) {
 		AppendLogEntryMsg emptyLogMsg = getEmptyLogMsg();
 		emptyLogMsg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_NULL);
+		emptyLogMsg.setPrevLogIndex(roleController.getiLogSnap().getLastLogIndex());
+		emptyLogMsg.setPrevLogTerm(roleController.getiLogSnap().getLastLogTerm());
+
 		String actionWorker = getAppendWorkerCard(nodeId);
 		try {
 			FlowHeader.putProducts(actionWorker, emptyLogMsg);
@@ -116,6 +101,11 @@ public class Leader extends AbstractRoles implements ILeader {
 		}
 	}
 
+	/**
+	 * 缺少追加类型，上一条日志的索引和任期，以及日志内容，需要根据具体情况补全
+	 * 
+	 * @return
+	 */
 	public AppendLogEntryMsg getEmptyLogMsg() {
 
 		AppendLogEntryMsg msg = new AppendLogEntryMsg();
@@ -123,12 +113,23 @@ public class Leader extends AbstractRoles implements ILeader {
 		msg.setMsgId(IdGenerateHelper.getMsgId());
 		msg.setMsgType(Msg.TYPE_APPEND_LOG);
 		msg.setNodeId(selfId);
-		msg.setPrevLogIndex(roleController.getiLogEntry().getLastLogIndex());
-		msg.setPrevLogTerm(roleController.getiLogEntry().getLastLogTerm());
 		msg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		msg.setTerm(getCurrentTerm());
 		msg.setTransactionId(IdGenerateHelper.getNextSessionId());
+		msg.setSessionMap(roleController.getSessionMap());
 		return msg;
+	}
+
+	public AppendSnapshotMsg getEmptyAppendSnapshotMsg() {
+		AppendSnapshotMsg appendSnapshotMsg = new AppendSnapshotMsg();
+		appendSnapshotMsg.setMsgId(IdGenerateHelper.getMsgId());
+		appendSnapshotMsg.setMsgType(Msg.TYPE_APPEND_SNAPSHOT);
+		appendSnapshotMsg.setNodeId(selfId);
+		appendSnapshotMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
+		appendSnapshotMsg.setTerm(getCurrentTerm());
+		appendSnapshotMsg.setTransactionId(IdGenerateHelper.getNextSessionId());
+		appendSnapshotMsg.setSessionMap(roleController.getSessionMap());
+		return appendSnapshotMsg;
 	}
 
 	public BaseLog getBaseLog(ClientActionMsg clientActionMsg) {
@@ -138,7 +139,7 @@ public class Leader extends AbstractRoles implements ILeader {
 		baseLog.setCreateTime(clientActionMsg.getSendTime());
 		baseLog.setKey(clientActionMsg.getKey());
 		baseLog.setLeaderId(selfId);
-		baseLog.setLogIndex(getRoleController().getiLogEntry().getLastLogIndex() + 1);
+		baseLog.setLogIndex(getRoleController().getiLogSnap().getLastLogIndex() + 1);
 		baseLog.setLogTerm(getCurrentTerm());
 		baseLog.setLogType(clientActionMsg.getActionType());
 		baseLog.setSraftTransactionId(IdGenerateHelper.getNextSessionId());
@@ -166,6 +167,8 @@ public class Leader extends AbstractRoles implements ILeader {
 			}
 			AppendLogEntryMsg emptyMsg = getEmptyLogMsg();
 			emptyMsg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_ORDINARY);
+			emptyMsg.setPrevLogIndex(roleController.getiLogSnap().getLastLogIndex());
+			emptyMsg.setPrevLogTerm(roleController.getiLogSnap().getLastLogTerm());
 			List<BaseLog> baseLogList = new ArrayList<BaseLog>();
 			baseLogList.add(baseLog);
 			emptyMsg.setBaseLogList(baseLogList);
@@ -238,6 +241,21 @@ public class Leader extends AbstractRoles implements ILeader {
 				nodeId = connAddressList.get(i).getNodeId();
 				String heartbeatWorkerCard = getHeartbeatWorkerCard(nodeId);
 				FlowHeader.unEmploy(heartbeatWorkerCard);
+				FollowStatus followStatus = followStatusMap.get(nodeId);
+				BlockingQueue<Packet> followPendingQueue = followStatus.getPendingQueue();
+				synchronized (followPendingQueue) {
+					while (!followPendingQueue.isEmpty()) {
+						try {
+							Packet packet = followPendingQueue.take();
+							synchronized (packet) {
+								packet.notify();
+							}
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+							LOG.error(e.getMessage(), e);
+						}
+					}
+				}
 			}
 			String actionWorkerCard = getAppendWorkerCard(nodeId);
 			FlowHeader.unEmploy(actionWorkerCard);
@@ -259,6 +277,7 @@ public class Leader extends AbstractRoles implements ILeader {
 
 	public HeartbeatMsg getHeartbeatMsg() {
 		HeartbeatMsg msg = new HeartbeatMsg();
+		msg.setLeaderCommit(roleController.getiStatement().getLastCommitId());
 		msg.setMsgId(IdGenerateHelper.getMsgId());
 		msg.setMsgType(Msg.TYPE_HEARTBEAT);
 		msg.setNodeId(selfId);

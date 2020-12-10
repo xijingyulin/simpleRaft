@@ -19,7 +19,8 @@ public class HeartbeatMsg extends ServerMsg {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("leaderCommit:");
+		builder.append("commitStatus:");
+		builder.append(",leaderCommit:");
 		builder.append(leaderCommit);
 		builder.append(",sessionMap:");
 		builder.append(sessionMap);
@@ -53,5 +54,4 @@ public class HeartbeatMsg extends ServerMsg {
 	public void setLeaderCommit(long leaderCommit) {
 		this.leaderCommit = leaderCommit;
 	}
-
 }

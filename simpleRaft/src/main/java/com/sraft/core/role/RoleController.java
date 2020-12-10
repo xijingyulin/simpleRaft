@@ -1,10 +1,14 @@
 package com.sraft.core.role;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,9 +17,13 @@ import com.sraft.Config;
 import com.sraft.common.flow.FlowHeader;
 import com.sraft.core.data.IStatement;
 import com.sraft.core.data.StatemachineManager;
-import com.sraft.core.log.ILogEntry;
-import com.sraft.core.log.LogEntryManager;
+import com.sraft.core.log.ILogSnap;
+import com.sraft.core.log.LogSnapManager;
+import com.sraft.core.message.AppendLogEntryMsg;
+import com.sraft.core.message.AppendSnapshotMsg;
+import com.sraft.core.message.BaseLog;
 import com.sraft.core.message.HeartbeatMsg;
+import com.sraft.core.message.ServerMsg;
 import com.sraft.core.net.ConnManager;
 import com.sraft.core.net.ServerAddress;
 import com.sraft.core.role.worker.AppendLogWorkder;
@@ -26,6 +34,8 @@ import com.sraft.core.role.worker.HeartbeatWorker;
 import com.sraft.core.role.worker.RequestVoteWorker;
 import com.sraft.core.role.worker.Workder;
 import com.sraft.core.session.Session;
+import com.sraft.enums.EnumAppendLogResult;
+import com.sraft.enums.EnumAppendSnapshotResult;
 import com.sraft.enums.EnumRole;
 
 public class RoleController {
@@ -44,7 +54,7 @@ public class RoleController {
 	/**
 	 * 日志和快照持久化操作
 	 */
-	private ILogEntry iLogEntry = null;
+	private ILogSnap iLogSnap = null;
 	/**
 	 * 持久化任期，和跟随者投票给候选者的ID
 	 */
@@ -53,6 +63,8 @@ public class RoleController {
 	 * key:会话ID，value:会话信息
 	 */
 	private Map<Long, Session> sessionMap = new ConcurrentHashMap<Long, Session>();
+
+	private Lock sessionLock = new ReentrantLock();
 
 	//消息处理操作
 	public static final String LOGIN_WORKER = "LOGIN_WORKER";
@@ -72,8 +84,8 @@ public class RoleController {
 
 	public RoleController(Config config) throws IOException, InterruptedException {
 		this.config = config;
-		this.iLogEntry = new LogEntryManager(this.config);
-		this.iStatement = new StatemachineManager(this.iLogEntry);
+		this.iLogSnap = new LogSnapManager(this.config);
+		this.iStatement = new StatemachineManager(this.iLogSnap);
 		this.termAndVotedForService = new TermAndVotedForService(this.config);
 		LOG.info("添加消息传递通道");
 		addWorker();
@@ -201,7 +213,7 @@ public class RoleController {
 					Follower follower = (Follower) role;
 					int leaderId = follower.getLeaderId();
 					long currentTerm = follower.getCurrentTerm();
-					HeartbeatMsg lastHeartbeat = follower.getHeartbeatMsg();
+					ServerMsg lastHeartbeat = follower.getHeartbeatMsg();
 					LOG.info("【当前角色:{},当前任期:{},领导者是:{},最后一次心跳接收时间:{}】", "跟随者", currentTerm, leaderId,
 							lastHeartbeat == null ? "" : lastHeartbeat.getReceviceTime());
 
@@ -263,14 +275,6 @@ public class RoleController {
 		return config;
 	}
 
-	public IStatement getiStatement() {
-		return iStatement;
-	}
-
-	public ILogEntry getiLogEntry() {
-		return iLogEntry;
-	}
-
 	public TermAndVotedForService getTermAndVotedForService() {
 		return termAndVotedForService;
 	}
@@ -327,6 +331,37 @@ public class RoleController {
 		return isUpdate;
 	}
 
+	/**
+	 * 非领导者使用，更新本地缓存
+	 * 
+	 * @param newSessionMap
+	 */
+	public void updateSession(Map<Long, Session> newSessionMap, boolean isUpdateTransaction) {
+		sessionLock.lock();
+		Iterator<Long> it = sessionMap.keySet().iterator();
+		while (it.hasNext()) {
+			Long oldSessionId = it.next();
+			Session oldSession = sessionMap.get(oldSessionId);
+			Session newSession = newSessionMap.get(oldSessionId);
+			if (newSession == null) {
+				it.remove();
+			} else {
+				oldSession.setLastReceiveTime(newSession.getLastReceiveTime());
+				if (isUpdateTransaction) {
+					oldSession.setLastClientTransactionId(newSession.getLastClientTransactionId());
+				}
+			}
+		}
+		for (Entry<Long, Session> entry : newSessionMap.entrySet()) {
+			Long newSessionId = entry.getKey();
+			Session newSession = entry.getValue();
+			if (!sessionMap.containsKey(newSessionId)) {
+				sessionMap.put(newSessionId, newSession);
+			}
+		}
+		sessionLock.unlock();
+	}
+
 	public void addSession(long newSessionId, long newLastReceiveTime, long newLastClientTransactionId) {
 		Session session = new Session(newSessionId, newLastReceiveTime, newLastClientTransactionId);
 		sessionMap.put(newSessionId, session);
@@ -339,5 +374,45 @@ public class RoleController {
 		loginWorkder.setEnable(true);
 		clientHeartbeatWorker.setEnable(true);
 		clientActionWorkder.setEnable(true);
+	}
+
+	public IStatement getiStatement() {
+		return iStatement;
+	}
+
+	public ILogSnap getiLogSnap() {
+		return iLogSnap;
+	}
+
+	public void updateSession(List<BaseLog> baseLogList) {
+		sessionLock.lock();
+		for (BaseLog baseLog : baseLogList) {
+			long sessionId = baseLog.getClientSessionId();
+			long clientTransactionId = baseLog.getClientTransactionId();
+			Session session = sessionMap.get(sessionId);
+			if (session != null) {
+				session.setLastClientTransactionId(clientTransactionId);
+			}
+		}
+		sessionLock.unlock();
+	}
+
+	public EnumAppendLogResult appendLogEntry(AppendLogEntryMsg appendLogEntryMsg) {
+		EnumAppendLogResult result = iLogSnap.appendLogEntry(appendLogEntryMsg);
+		if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
+			if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_NULL) {
+				updateSession(appendLogEntryMsg.getSessionMap(), true);
+			} else if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_ORDINARY) {
+				updateSession(appendLogEntryMsg.getBaseLogList());
+			}
+		}
+		//		if (iLogSnap.isNeedRebootStatemachine()) {
+		//			iStatement.restart();
+		//		}
+		return result;
+	}
+
+	public EnumAppendSnapshotResult appendSnapshot(AppendSnapshotMsg appendSnapshotMsg) {
+		return iLogSnap.appendSnapshot(appendSnapshotMsg);
 	}
 }

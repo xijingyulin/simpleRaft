@@ -8,4 +8,6 @@ public interface IAction {
 	boolean del(Statemachine statemachine, String key);
 
 	String get(Statemachine statemachine, String key);
+	
+	void clear(Statemachine statemachine);
 }

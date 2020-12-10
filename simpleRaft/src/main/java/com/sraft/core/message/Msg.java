@@ -37,6 +37,8 @@ public class Msg {
 	public static final int TYPE_REPLY_CLIENT_ACTION = 10;
 	public static final int TYPE_APPEND_LOG = 11;
 	public static final int TYPE_REPLY_APPEND_LOG = 12;
+	public static final int TYPE_APPEND_SNAPSHOT = 13;
+	public static final int TYPE_REPLY_APPEND_SNAPSHOT = 14;
 
 	// 客户端交互异常码
 	public static final int ERR_CODE_LOGIN_FOLLOWER = 1;

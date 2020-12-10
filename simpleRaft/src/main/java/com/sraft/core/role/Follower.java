@@ -1,8 +1,11 @@
 package com.sraft.core.role;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,17 +86,5 @@ public class Follower extends AbstractRoles {
 			this.leaderId = receiveLeader;
 		}
 	}
-
-	public void updateSession(Map<Long, Session> newSessionMap) {
-		Map<Long, Session> oldSessionMap = roleController.getSessionMap();
-		Iterator<Long> it = oldSessionMap.keySet().iterator();
-		while (it.hasNext()) {
-			Long oldSessionId = it.next();
-			Session newSession = newSessionMap.get(oldSessionId);
-			if (newSession == null) {
-				it.remove();
-			}
-		}
-		oldSessionMap.putAll(newSessionMap);
-	}
+	
 }

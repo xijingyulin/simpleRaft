@@ -70,6 +70,15 @@ public interface ILogData {
 	List<LogData> getLogDataByCount(String logDataPath, int logDataCount);
 
 	/**
+	 * 从指定位置开始读取指定数量的日志
+	 * 
+	 * @param logDataPath
+	 * @return
+	 * @throws IOException 
+	 */
+	List<LogData> getLogDataByCount(String logDataPath, long beginLogIndex, int logDataCount) throws IOException;
+
+	/**
 	 * 计算日志总条数
 	 * 
 	 * @param logDataPath

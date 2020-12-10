@@ -29,6 +29,7 @@ public final class FlowHeader {
 	/**
 	 * 响铃，货物到来
 	 */
+	@Deprecated
 	protected static String BELLS = new String("BELLS");
 
 	/**

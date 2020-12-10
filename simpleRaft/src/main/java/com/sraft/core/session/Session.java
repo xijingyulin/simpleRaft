@@ -14,7 +14,7 @@ public class Session {
 	 */
 	private long lastReceiveTime;
 	/**
-	 * 客户端操作最新事务时间
+	 * 客户端操作最新事务Id
 	 */
 	private long lastClientTransactionId = -1;
 
@@ -42,7 +42,9 @@ public class Session {
 	}
 
 	public void setLastReceiveTime(long lastReceiveTime) {
-		this.lastReceiveTime = lastReceiveTime;
+		if (lastReceiveTime > this.lastReceiveTime) {
+			this.lastReceiveTime = lastReceiveTime;
+		}
 	}
 
 	public long getLastClientTransactionId() {

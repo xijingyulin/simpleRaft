@@ -23,8 +23,8 @@ import com.sraft.core.message.AppendSnapshotMsg;
 import com.sraft.core.message.BaseLog;
 import com.sraft.core.message.BaseSnapshot;
 
-public abstract class ALogEntryImpl implements ILogEntry {
-	private static Logger LOG = LoggerFactory.getLogger(ALogEntryImpl.class);
+public abstract class ALogSnapImpl implements ILogSnap {
+	private static Logger LOG = LoggerFactory.getLogger(ALogSnapImpl.class);
 
 	protected ILogData iLogData = null;
 	protected LogData lastLogData = null;
@@ -67,7 +67,7 @@ public abstract class ALogEntryImpl implements ILogEntry {
 	 */
 	protected int compressCount = 8000;
 
-	public ALogEntryImpl(Config config) throws IOException {
+	public ALogSnapImpl(Config config) throws IOException {
 		logDataDir = config.getLogDataDir();
 		snapshotInterval = config.getSnapshotInterval();
 		compressTrigger = config.getCompressTrigger();
@@ -224,7 +224,7 @@ public abstract class ALogEntryImpl implements ILogEntry {
 	/**
 	 * 一致性检查，是否和快照最后一条日志相同
 	 * 
-	 * 这种情况一般都是日志不为空，却一致性检查失败
+	 * 这种情况日志一般不为空，一致性检查成功的话，需要删除日志
 	 * 
 	 * @param appendLogEntryMsg
 	 * @return
@@ -247,10 +247,32 @@ public abstract class ALogEntryImpl implements ILogEntry {
 		lastSnapTerm = snapshot.getLogTerm();
 	}
 
+	/**
+	 * 检查快照一致性
+	 * 
+	 * @param appendSnapshotMsg
+	 * @return
+	 */
 	protected boolean checkSnapConsistency(AppendSnapshotMsg appendSnapshotMsg) {
 		long prevSnapIndex = appendSnapshotMsg.getPrevSnapIndex();
 		long prevSnapTerm = appendSnapshotMsg.getPrevSnapTerm();
 		if (prevSnapIndex == lastSnapIndex && prevSnapTerm == lastSnapTerm) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	 * 第一条日志，需要先清空跟随者快照和日志
+	 * 
+	 * @param appendLogEntryMsg
+	 * @return
+	 */
+	protected boolean isFirstLog(AppendLogEntryMsg appendLogEntryMsg) {
+		long prevLogIndex = appendLogEntryMsg.getPrevLogIndex();
+		long prevLogTerm = appendLogEntryMsg.getPrevLogTerm();
+		if (prevLogIndex == -1 && prevLogTerm == -1) {
 			return true;
 		} else {
 			return false;

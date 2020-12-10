@@ -14,62 +14,47 @@ import com.sraft.common.FileHelper;
 import com.sraft.common.StringHelper;
 import com.sraft.core.message.AppendLogEntryMsg;
 import com.sraft.core.message.AppendSnapshotMsg;
+import com.sraft.core.message.BaseLog;
 import com.sraft.enums.EnumAppendLogResult;
 import com.sraft.enums.EnumAppendSnapshotResult;
 
-public class LogEntryManager extends ALogEntryImpl {
+public class LogSnapManager extends ALogSnapImpl {
 
-	private static Logger LOG = LoggerFactory.getLogger(LogEntryManager.class);
+	private static Logger LOG = LoggerFactory.getLogger(LogSnapManager.class);
 
-	public LogEntryManager(Config config) throws IOException {
+	public LogSnapManager(Config config) throws IOException {
 		super(config);
 		init();
 	}
 
 	@Override
 	public List<LogData> getAllLogData() throws IOException {
+		getLock();
 		List<LogData> allLogDataList = new ArrayList<LogData>();
 		if (StringHelper.checkIsNotNull(logDataPath)) {
 			allLogDataList = iLogData.getAllLogData(logDataPath);
 		}
+		unLock();
 		return allLogDataList;
 	}
 
 	@Override
 	public List<Snapshot> getAllSnapshot() {
+		getLock();
 		List<Snapshot> allSnapshotList = new ArrayList<Snapshot>();
 		if (StringHelper.checkIsNotNull(snapshotPath)) {
 			allSnapshotList = iSnapshot.getAllSnapshot(snapshotPath);
 		}
+		unLock();
 		return allSnapshotList;
 	}
 
-	/*
-	 * 1.空日志，只需检查上一条索引；不需遍历整个文件
-	 * 
-	 * 2.非空日志，需要检查：上一条索引，遍历整个文件，快照的最后一条索引
-	 * 
-	 * 3.通过一致性检查，空日志直接返回成功
-	 * 
-	 * 4.通过一致性检查，非空日志写文件
-	 * 
-	 * （1）上一条索引：直接再在末尾追加
-	 * 
-	 * （2）步骤（1）检查失败，遍历整个文件：在对应的偏移位置插入；需要重启状态机
-	 * 
-	 * （3）步骤（1）（2）检查失败，快照的最后一条索引，删除现有日志文件；需要重启状态机
-	 * 
-	 * （4）日志为空的话，都需要先新建文件
-	 * 
-	 * 5.没有通过一致性检查，还需要检查是否是空服务器，空服务器需要先发送快照，再发送日志
-	 */
 	@Override
-	public int appendLogEntry(AppendLogEntryMsg appendLogEntryMsg) {
+	public EnumAppendLogResult appendLogEntry(AppendLogEntryMsg appendLogEntryMsg) {
 		getLock();
 		EnumAppendLogResult appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
 		LogData prevLogData = null;
 		boolean isConsistency = false;
-
 		int appendType = appendLogEntryMsg.getAppendType();
 		// 空日志只需一致性检查
 		if (appendType == AppendLogEntryMsg.TYPE_APPEND_NULL) {
@@ -80,10 +65,27 @@ public class LogEntryManager extends ALogEntryImpl {
 			} else {
 				appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
 			}
-			return appendResultEnum.getValue();
+			return appendResultEnum;
+		} else {
+			BaseLog baseLog = appendLogEntryMsg.getBaseLogList().get(0);
+			//如果是读请求，同样只需一致性检查
+			if (baseLog.getLogType() == LogData.LOG_GET) {
+				if (consistencyCheck(appendLogEntryMsg)) {
+					appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
+				} else if (isNullServer()) {
+					appendResultEnum = EnumAppendLogResult.LOG_NULL;
+				} else {
+					appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
+				}
+				return appendResultEnum;
+			}
 		}
 
-		if (consistencyCheck(appendLogEntryMsg)) {
+		if (isFirstLog(appendLogEntryMsg)) {
+			clear();
+			isConsistency = true;
+			isChanged = true;
+		} else if (consistencyCheck(appendLogEntryMsg)) {
 			isConsistency = true;
 		} else if (consistencyCheckSnapshot(appendLogEntryMsg)) {
 			isConsistency = true;
@@ -144,17 +146,18 @@ public class LogEntryManager extends ALogEntryImpl {
 			}
 		}
 		unLock();
-		return appendResultEnum.getValue();
+		return appendResultEnum;
 	}
 
 	@Override
-	public int appendSnapshot(AppendSnapshotMsg appendSnapshotMsg) {
+	public EnumAppendSnapshotResult appendSnapshot(AppendSnapshotMsg appendSnapshotMsg) {
 		getLock();
 		EnumAppendSnapshotResult appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
 		long prevSnapIndex = appendSnapshotMsg.getPrevSnapIndex();
 		long prevSnapTerm = appendSnapshotMsg.getPrevSnapTerm();
 		// 第一个快照，需要清空所有日志信息
 		if (prevSnapIndex == -1 && prevSnapTerm == -1) {
+			isChanged = true;
 			clear();
 			snapshotPath = logDataDir + File.separator + PREFIX_SNAPSHOT
 					+ appendSnapshotMsg.getBaseSnapshot().get(0).getLogIndex() + ".snapshot";
@@ -171,6 +174,7 @@ public class LogEntryManager extends ALogEntryImpl {
 			try {
 				boolean isSuccess = iSnapshot.appendSnapshot(snapshotPath, snapshotList);
 				if (isSuccess) {
+					isChanged = true;
 					appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_TRUE;
 					updateLastSnapshot(snapshotList.get(snapshotList.size() - 1));
 				} else {
@@ -186,7 +190,7 @@ public class LogEntryManager extends ALogEntryImpl {
 			appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
 		}
 		unLock();
-		return appendSnapshotResult.getValue();
+		return appendSnapshotResult;
 	}
 
 	@Override
@@ -242,14 +246,16 @@ public class LogEntryManager extends ALogEntryImpl {
 
 	@Override
 	public LogData getLogDataByIndex(long logIndex) {
+		getLock();
 		LogData logData = null;
 		try {
 			logData = iLogData.getLogDataByIndex(logDataPath, logIndex);
-			return logData;
 		} catch (IOException e) {
 			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
 		}
-		return null;
+		unLock();
+		return logData;
 	}
 
 	@Override
@@ -264,12 +270,42 @@ public class LogEntryManager extends ALogEntryImpl {
 
 	@Override
 	public boolean isNeedRebootStatemachine() {
+		getLock();
+		boolean result = false;
 		if (isChanged == true) {
 			isChanged = false;
-			return true;
-		} else {
-			return false;
+			result = true;
 		}
+		unLock();
+		return result;
+	}
+
+	@Override
+	public List<LogData> getLogDataByCount(long beginLogIndex, int logDataCount) {
+		getLock();
+		List<LogData> logDataList = new ArrayList<LogData>();
+		try {
+			logDataList = iLogData.getLogDataByCount(logDataPath, beginLogIndex, logDataCount);
+		} catch (IOException e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
+		}
+		unLock();
+		return logDataList;
+	}
+
+	@Override
+	public List<Snapshot> getSnapshotList(long beginSnapshotIndex, int count) {
+		getLock();
+		List<Snapshot> snapshotList = new ArrayList<Snapshot>();
+		try {
+			snapshotList = iSnapshot.getSnapshotList(snapshotPath, beginSnapshotIndex, count);
+		} catch (Exception e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
+		}
+		unLock();
+		return snapshotList;
 	}
 
 }

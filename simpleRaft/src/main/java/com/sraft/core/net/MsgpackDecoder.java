@@ -6,10 +6,14 @@ import java.util.List;
 import org.msgpack.MessagePack;
 
 import com.sraft.common.DateHelper;
+import com.sraft.core.message.AppendLogEntryMsg;
+import com.sraft.core.message.AppendSnapshotMsg;
 import com.sraft.core.message.ClientHeartbeatMsg;
 import com.sraft.core.message.HeartbeatMsg;
 import com.sraft.core.message.LoginMsg;
 import com.sraft.core.message.Msg;
+import com.sraft.core.message.ReplyAppendLogEntryMsg;
+import com.sraft.core.message.ReplyAppendSnapshotMsg;
 import com.sraft.core.message.ReplyClientHeartbeatMsg;
 import com.sraft.core.message.ReplyHeartbeatMsg;
 import com.sraft.core.message.ReplyLoginMsg;
@@ -56,6 +60,18 @@ public class MsgpackDecoder extends MessageToMessageDecoder<ByteBuf> {
 			break;
 		case Msg.TYPE_REPLY_CLIENT_HEARTBEAT:
 			outObject = messagePack.read(array, ReplyClientHeartbeatMsg.class);
+			break;
+		case Msg.TYPE_APPEND_LOG:
+			outObject = messagePack.read(array, AppendLogEntryMsg.class);
+			break;
+		case Msg.TYPE_REPLY_APPEND_LOG:
+			outObject = messagePack.read(array, ReplyAppendLogEntryMsg.class);
+			break;
+		case Msg.TYPE_APPEND_SNAPSHOT:
+			outObject = messagePack.read(array, AppendSnapshotMsg.class);
+			break;
+		case Msg.TYPE_REPLY_APPEND_SNAPSHOT:
+			outObject = messagePack.read(array, ReplyAppendSnapshotMsg.class);
 			break;
 		default:
 			outObject = msgObject;

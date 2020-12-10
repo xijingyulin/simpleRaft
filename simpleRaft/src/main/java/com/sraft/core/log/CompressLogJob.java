@@ -2,9 +2,9 @@ package com.sraft.core.log;
 
 public class CompressLogJob implements Runnable {
 
-	private ILogEntry iLogEntry;
+	private ILogSnap iLogEntry;
 
-	public CompressLogJob(ILogEntry iLogEntry) {
+	public CompressLogJob(ILogSnap iLogEntry) {
 		this.iLogEntry = iLogEntry;
 	}
 

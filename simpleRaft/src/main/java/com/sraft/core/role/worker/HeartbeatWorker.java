@@ -44,16 +44,13 @@ public class HeartbeatWorker extends Workder {
 		replyHeartbeatMsg.setNodeId(role.getSelfId());
 		replyHeartbeatMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		replyHeartbeatMsg.setTerm(role.getCurrentTerm());
-		if (isPassTerm) {
-			replyHeartbeatMsg.setResult(Msg.RETURN_STATUS_OK);
-		} else {
-			replyHeartbeatMsg.setResult(Msg.RETURN_STATUS_FALSE);
-		}
-		ctx.writeAndFlush(replyHeartbeatMsg);
+
 		// 是否需要更新任期，比自己大就要更新
 		boolean isUpdate = role.updateTerm(fromTerm);
 		// （1）遇到任期更大的，更新自己任期，转成跟随者
 		if (isPassTerm) {
+			replyHeartbeatMsg.setResult(Msg.RETURN_STATUS_OK);
+			role.getRoleController().updateSession(heartbeatMsg.getSessionMap(), false);
 			if (role instanceof Candidate) {
 				Candidate candidate = (Candidate) role;
 				candidate.setHeartbeatMsg(heartbeatMsg);
@@ -69,9 +66,12 @@ public class HeartbeatWorker extends Workder {
 				Follower follower = (Follower) role;
 				follower.setHeartbeatMsg(heartbeatMsg);
 				follower.setLeaderId(heartbeatMsg.getNodeId());
-				follower.updateSession(heartbeatMsg.getSessionMap());
 			}
+		} else {
+			replyHeartbeatMsg.setResult(Msg.RETURN_STATUS_FALSE);
+			replyHeartbeatMsg.setErrCode(Msg.ERR_CODE_LOG_LARGE_TERM);
 		}
+		ctx.writeAndFlush(replyHeartbeatMsg);
 	}
 
 	public boolean checkTerm(long fromTerm) {

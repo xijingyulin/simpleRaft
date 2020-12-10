@@ -1,8 +1,12 @@
 package com.sraft.core.message;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.msgpack.annotation.Message;
+
+import com.sraft.core.session.Session;
 
 @Message
 public class AppendLogEntryMsg extends ServerMsg {
@@ -10,9 +14,12 @@ public class AppendLogEntryMsg extends ServerMsg {
 	private int appendType;
 	private long prevLogIndex;
 	private long prevLogTerm;
+	/**
+	 * 当 appendType == TYPE_APPEND_ORDINARY,跟随者才提交前面的
+	 */
 	private long leaderCommit;
 	private List<BaseLog> baseLogList;
-
+	private Map<Long, Session> sessionMap = new HashMap<Long, Session>();
 	/**
 	 * 空日志
 	 */
@@ -81,6 +88,8 @@ public class AppendLogEntryMsg extends ServerMsg {
 		builder.append(leaderCommit);
 		builder.append(",baseLogList:");
 		builder.append(baseLogList);
+		builder.append(",sessionMap:");
+		builder.append(sessionMap);
 		builder.append(",nodeId:");
 		builder.append(nodeId);
 		builder.append(",term:");
@@ -110,6 +119,14 @@ public class AppendLogEntryMsg extends ServerMsg {
 
 	public void setAppendType(int appendType) {
 		this.appendType = appendType;
+	}
+
+	public Map<Long, Session> getSessionMap() {
+		return sessionMap;
+	}
+
+	public void setSessionMap(Map<Long, Session> sessionMap) {
+		this.sessionMap = sessionMap;
 	}
 
 }

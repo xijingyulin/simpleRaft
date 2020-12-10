@@ -3,38 +3,39 @@ package com.sraft.core.message;
 import org.msgpack.annotation.Message;
 
 @Message
-public class ReplyHeartbeatMsg extends ServerMsg {
-	private int result;
+public class ReplyHeartbeatMsg extends ServerReply {
 
 	public ReplyHeartbeatMsg() {
 
 	}
 
-	public int getResult() {
-		return result;
-	}
-
-	public void setResult(int result) {
-		this.result = result;
-	}
-
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("result:");
-		builder.append(result);
-		builder.append(",nodeId:");
-		builder.append(nodeId);
-		builder.append(",term:");
-		builder.append(term);
-		builder.append(",msgType:");
-		builder.append(msgType);
-		builder.append(",msgId:");
-		builder.append(msgId);
-		builder.append(",sendTime:");
-		builder.append(sendTime);
-		builder.append(",receviceTime:");
-		builder.append(receviceTime);
+		builder.append("getResult:");
+		builder.append(getResult());
+		builder.append(",getErrCode:");
+		builder.append(getErrCode());
+		builder.append(",getRemark:");
+		builder.append(getRemark());
+		builder.append(",toString:");
+		builder.append(super.toString());
+		builder.append(",getMsgId:");
+		builder.append(getMsgId());
+		builder.append(",getTerm:");
+		builder.append(getTerm());
+		builder.append(",getSendTime:");
+		builder.append(getSendTime());
+		builder.append(",getNodeId:");
+		builder.append(getNodeId());
+		builder.append(",getMsgType:");
+		builder.append(getMsgType());
+		builder.append(",getReceviceTime:");
+		builder.append(getReceviceTime());
+		builder.append(",getClass:");
+		builder.append(getClass());
+		builder.append(",hashCode:");
+		builder.append(hashCode());
 		return builder.toString();
 	}
 

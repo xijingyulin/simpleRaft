@@ -8,9 +8,15 @@ import org.slf4j.LoggerFactory;
 
 import com.sraft.common.flow.FlowHeader;
 import com.sraft.common.flow.NoFlowLineException;
+import com.sraft.core.message.AppendLogEntryMsg;
+import com.sraft.core.message.AppendSnapshotMsg;
+import com.sraft.core.message.ClientActionMsg;
 import com.sraft.core.message.ClientHeartbeatMsg;
 import com.sraft.core.message.HeartbeatMsg;
 import com.sraft.core.message.LoginMsg;
+import com.sraft.core.message.ReplyAppendLogEntryMsg;
+import com.sraft.core.message.ReplyAppendSnapshotMsg;
+import com.sraft.core.message.ReplyClientActionMsg;
 import com.sraft.core.message.ReplyClientHeartbeatMsg;
 import com.sraft.core.message.ReplyHeartbeatMsg;
 import com.sraft.core.message.ReplyLoginMsg;
@@ -54,6 +60,24 @@ public abstract class AbstractHandler extends ChannelHandlerAdapter {
 			} else if (msg instanceof ReplyClientHeartbeatMsg) {
 				//LOG.info("接收到【回复客户端心跳】消息:{}", msg.toString());
 				FlowHeader.putProducts(RoleController.CLIENT_HEARTBEAT_WORKER, params);
+			} else if (msg instanceof ClientActionMsg) {
+				LOG.info("接收到【事务操作】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.CLIENT_ACTION_WORKDER, params);
+			} else if (msg instanceof ReplyClientActionMsg) {
+				LOG.info("接收到【回复事务操作】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.CLIENT_ACTION_WORKDER, params);
+			} else if (msg instanceof AppendLogEntryMsg) {
+				LOG.info("接收到【追加日志】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.APPEND_LOG_WORKER, params);
+			} else if (msg instanceof ReplyAppendLogEntryMsg) {
+				LOG.info("接收到【回复追加日志】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.APPEND_LOG_WORKER, params);
+			} else if (msg instanceof AppendSnapshotMsg) {
+				LOG.info("接收到【追加快照】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.APPEND_LOG_WORKER, params);
+			} else if (msg instanceof ReplyAppendSnapshotMsg) {
+				LOG.info("接收到【回复追加快照】消息:{}", msg.toString());
+				FlowHeader.putProducts(RoleController.APPEND_LOG_WORKER, params);
 			} else {
 				LOG.info("接收到【其它不明消息！！！！！！！！！！！！！！！】消息:{}", msg.toString());
 			}

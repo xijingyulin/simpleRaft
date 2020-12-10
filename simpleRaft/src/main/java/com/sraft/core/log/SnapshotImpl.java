@@ -185,7 +185,7 @@ public class SnapshotImpl implements ISnapshot {
 					Snapshot snapshot = entry.getValue();
 					long logIndex = snapshot.getLogIndex();
 					if (isFirst) {
-						newSnapshotPath = logDataDir + File.separator + LogEntryManager.PREFIX_SNAPSHOT + logIndex
+						newSnapshotPath = logDataDir + File.separator + LogSnapManager.PREFIX_SNAPSHOT + logIndex
 								+ ".snapshot";
 						isFirst = false;
 					}
@@ -204,7 +204,7 @@ public class SnapshotImpl implements ISnapshot {
 				raf.write(lastSnapshot.getbKey());
 				raf.writeInt(lastSnapshot.getValueLength());
 				raf.write(lastSnapshot.getbValue());
-				
+
 				oldStatemachine.clear();
 				//删除被压缩的日志
 				raf2 = new RandomAccessFile(oldLogDataPath, "r");
@@ -247,7 +247,7 @@ public class SnapshotImpl implements ISnapshot {
 				new File(temSnapshotPath).renameTo(new File(newSnapshotPath));
 				List<LogData> logDataList = iLogData.getLogDataByCount(temLogDataPath, 1);
 				LogData firstLogData = logDataList.get(0);
-				newLogDataPath = logDataDir + File.separator + LogEntryManager.PREFIX_LOG_DATA
+				newLogDataPath = logDataDir + File.separator + LogSnapManager.PREFIX_LOG_DATA
 						+ firstLogData.getSraftTransactionId() + ".log";
 				new File(temLogDataPath).renameTo(new File(newLogDataPath));
 				filePathArr = new String[2];
@@ -296,5 +296,59 @@ public class SnapshotImpl implements ISnapshot {
 			}
 		}
 		return isSuccess;
+	}
+
+	@Override
+	public List<Snapshot> getSnapshotList(String snapshotPath, long beginSnapshotIndex, int count) throws Exception {
+		List<Snapshot> snapshotList = new ArrayList<Snapshot>();
+
+		RandomAccessFile raf = null;
+		File file = new File(snapshotPath);
+		if (!file.exists()) {
+			return snapshotList;
+		}
+		try {
+			raf = new RandomAccessFile(file, "r");
+			byte[] byteArr = null;
+			Snapshot snapshot = null;
+			while (raf.getFilePointer() != raf.length()) {
+				snapshot = new Snapshot();
+				snapshot.setLogIndex(raf.readLong());
+				snapshot.setLogTerm(raf.readLong());
+				snapshot.setLogLength(raf.readLong());
+				if (snapshot.getLogIndex() >= beginSnapshotIndex) {
+					int keyLength = raf.readInt();
+					snapshot.setKeyLength(keyLength);
+					byteArr = new byte[keyLength];
+					raf.read(byteArr);
+					snapshot.setbKey(byteArr);
+					int valueLength = raf.readInt();
+					snapshot.setValueLength(valueLength);
+					byteArr = new byte[valueLength];
+					raf.read(byteArr);
+					snapshot.setbValue(byteArr);
+
+					snapshotList.add(snapshot);
+					if (snapshotList.size() == count) {
+						break;
+					}
+				} else {
+					int remain = (int) snapshot.getLogLength() - 24;
+					raf.skipBytes(remain);
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new Exception(e);
+		} finally {
+			if (raf != null) {
+				try {
+					raf.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return snapshotList;
 	}
 }

@@ -30,6 +30,17 @@ public interface ISnapshot {
 	List<Snapshot> getAllSnapshot(String snapshotPath);
 
 	/**
+	 * 从指定位置开始读取指定数量的快照
+	 * 
+	 * @param snapshotPath
+	 * @param logIndex
+	 * @param count
+	 * @return
+	 * @throws Exception
+	 */
+	List<Snapshot> getSnapshotList(String snapshotPath, long beginSnapshotIndex, int count) throws Exception;
+
+	/**
 	 * 生成快照，最后一条快照是记录最后的任期和索引
 	 * 
 	 * @param iLogData

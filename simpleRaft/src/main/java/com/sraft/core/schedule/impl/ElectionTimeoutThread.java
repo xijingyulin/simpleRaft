@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import com.sraft.common.DateHelper;
 import com.sraft.core.message.HeartbeatMsg;
+import com.sraft.core.message.ServerMsg;
 import com.sraft.core.role.AbstractRoles;
 import com.sraft.core.role.Candidate;
 import com.sraft.core.role.Follower;
@@ -72,7 +73,7 @@ public class ElectionTimeoutThread implements Runnable {
 			e.printStackTrace();
 			return true;
 		}
-		HeartbeatMsg heartbeatMsg = role.getHeartbeatMsg();
+		ServerMsg heartbeatMsg = role.getHeartbeatMsg();
 		if (heartbeatMsg == null) {
 			isDead = true;
 		} else {

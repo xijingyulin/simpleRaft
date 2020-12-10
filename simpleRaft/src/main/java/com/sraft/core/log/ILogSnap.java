@@ -5,8 +5,10 @@ import java.util.List;
 
 import com.sraft.core.message.AppendLogEntryMsg;
 import com.sraft.core.message.AppendSnapshotMsg;
+import com.sraft.enums.EnumAppendLogResult;
+import com.sraft.enums.EnumAppendSnapshotResult;
 
-public interface ILogEntry {
+public interface ILogSnap {
 
 	/**
 	 * 读取现有所有日志
@@ -24,25 +26,32 @@ public interface ILogEntry {
 	List<Snapshot> getAllSnapshot();
 
 	/**
-	 * 追加日志有两种
 	 * 
-	 * 1.空日志，与非空日志的唯一区别就是，不写到日志里，也不执行到状态机
+	 * 1.【空日志，非空日志读请求】，只需检查上一条索引；不需遍历整个文件
 	 * 
-	 * 2.非空日志
+	 * 2.【非空日志，非空日志读请求】，需要检查：上一条索引，遍历整个文件，快照的最后一条索引
 	 * 
-	 * 返回的状态只有三种，具体看枚举EnumReplyAppendLog
+	 * 3.通过一致性检查，【空日志，非空日志读请求】直接返回成功
 	 * 
-	 * （1）首先，一致性检查，先检查最新索引和任期，符合则返回【追加成功】；
+	 * 4.通过一致性检查，【非空日志写请求】写文件
 	 * 
-	 * （2）如果最新索引和任期不符合，则遍历日志，不遍历快照；都不符合再返回【一致性检查失败】
+	 * （1）上一条索引：直接再在末尾追加
 	 * 
-	 * （3）如果为空服务器，且追加的不是第一条日志；则返回【空服务器】
+	 * （2）步骤（1）检查失败，遍历整个文件：在对应的偏移位置插入；需要重启状态机
 	 * 
+	 * （3）步骤（1）（2）检查失败，快照的最后一条索引，删除现有日志文件；需要重启状态机
+	 * 
+	 * （4）日志为空的话，都需要先新建文件
+	 * 
+	 * （5）如果追加日志是第一条日志，直接清空跟随者快照和日志；需要重启状态机
+	 * 
+	 * 5.没有通过一致性检查，还需要检查是否是空服务器，空服务器需要先发送快照，再发送日志
 	 * 
 	 * @param appendLogEntryMsg
 	 * @return
+	 * @throws IOException
 	 */
-	int appendLogEntry(AppendLogEntryMsg appendLogEntryMsg) throws IOException;
+	EnumAppendLogResult appendLogEntry(AppendLogEntryMsg appendLogEntryMsg);
 
 	/**
 	 * 领导者发送快照只有两种情况
@@ -62,7 +71,7 @@ public interface ILogEntry {
 	 * @param appendSnapshotMsg
 	 * @return
 	 */
-	int appendSnapshot(AppendSnapshotMsg appendSnapshotMsg);
+	EnumAppendSnapshotResult appendSnapshot(AppendSnapshotMsg appendSnapshotMsg);
 
 	/**
 	 * 添加生成快照的定时任务
@@ -89,4 +98,8 @@ public interface ILogEntry {
 	long getLastSnapTerm();
 
 	boolean isNeedRebootStatemachine();
+
+	List<LogData> getLogDataByCount(long beginLogIndex, int logDataCount);
+
+	List<Snapshot> getSnapshotList(long beginSnapshotIndex, int count);
 }

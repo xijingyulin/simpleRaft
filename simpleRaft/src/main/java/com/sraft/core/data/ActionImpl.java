@@ -25,4 +25,9 @@ public class ActionImpl implements IAction {
 		return statemachine.getStatemachine().get(key);
 	}
 
+	@Override
+	public void clear(Statemachine statemachine) {
+		statemachine.getStatemachine().clear();
+	}
+
 }

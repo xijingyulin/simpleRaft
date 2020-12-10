@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.sraft.core.message.HeartbeatMsg;
+import com.sraft.core.message.ServerMsg;
 import com.sraft.enums.EnumRole;
 
 public abstract class AbstractRoles extends Thread implements IRole {
@@ -32,7 +33,7 @@ public abstract class AbstractRoles extends Thread implements IRole {
 	/**
 	 * 是否接收到心跳，首先接收到的心跳里面任期需要大于等于自己的，才是有效的心跳
 	 */
-	private volatile HeartbeatMsg heartbeatMsg = null;
+	private volatile ServerMsg heartbeatMsg = null;
 
 	public AbstractRoles(EnumRole playRole, RoleController roleController) throws IOException {
 		this.playRole = playRole;
@@ -41,6 +42,10 @@ public abstract class AbstractRoles extends Thread implements IRole {
 		// 恢复任期
 		currentTerm.set(roleController.getTermAndVotedForService().retrieveTerm());
 		votedFor = roleController.getTermAndVotedForService().retrieveVotedFor();
+		if (roleController.getiLogSnap().isNeedRebootStatemachine()) {
+			// 可能存在某个角色在修改日志后却没有重启状态机就转换角色了
+			roleController.getiStatement().restart();
+		}
 	}
 
 	public boolean updateTerm(long fromTerm) {
@@ -108,11 +113,11 @@ public abstract class AbstractRoles extends Thread implements IRole {
 
 	}
 
-	public HeartbeatMsg getHeartbeatMsg() {
+	public ServerMsg getHeartbeatMsg() {
 		return heartbeatMsg;
 	}
 
-	public void setHeartbeatMsg(HeartbeatMsg heartbeatMsg) {
+	public void setHeartbeatMsg(ServerMsg heartbeatMsg) {
 		this.heartbeatMsg = heartbeatMsg;
 	}
 

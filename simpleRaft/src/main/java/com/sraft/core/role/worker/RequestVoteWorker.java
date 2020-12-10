@@ -7,7 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.sraft.common.DateHelper;
-import com.sraft.core.log.ILogEntry;
+import com.sraft.core.log.ILogSnap;
 import com.sraft.core.message.Msg;
 import com.sraft.core.message.ReplyRequestVoteMsg;
 import com.sraft.core.message.RequestVoteMsg;
@@ -135,7 +135,7 @@ public class RequestVoteWorker extends Workder {
 	 */
 	public boolean checkLogIndexAndTerm(long fromTerm, long fromIndex) {
 		boolean isPass = false;
-		ILogEntry iLogEntry = role.getRoleController().getiLogEntry();
+		ILogSnap iLogEntry = role.getRoleController().getiLogSnap();
 		long currentLogTerm = iLogEntry.getLastLogTerm();
 		long currentLogIndex = iLogEntry.getLastLogTerm();
 		if (fromTerm > currentLogTerm) {

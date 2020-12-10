@@ -20,8 +20,6 @@ public class AppendTask {
 	 */
 	private AtomicInteger failNum = new AtomicInteger(0);
 
-	private Object result;
-
 	public AppendTask(BaseLog baseLog) {
 		this.baseLog = baseLog;
 	}
@@ -60,13 +58,5 @@ public class AppendTask {
 		} else {
 			return false;
 		}
-	}
-
-	public Object getResult() {
-		return result;
-	}
-
-	public void setResult(Object result) {
-		this.result = result;
 	}
 }

@@ -97,10 +97,16 @@ public class ClientActionWorker extends Workder {
 						}
 					}
 					if (appendTask.isOverHalfSuccess()) {
-						replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
+						// 提交状态机
+							
+						// 
 						if (baseLog.getLogType() == LogData.LOG_GET) {
-							replyClientActionMsg.setValue((String) appendTask.getResult());
+							
 						}
+						
+						
+						
+						replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
 					} else {
 						replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
 						replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOG_APPEND_FALSE);

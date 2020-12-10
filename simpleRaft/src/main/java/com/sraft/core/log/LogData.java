@@ -54,7 +54,7 @@ public class LogData extends BaseLog {
 	/**
 	 * 不需写入日志
 	 */
-	public final static int LOG_NULL = 5;
+	// public final static int LOG_NULL = 5;
 
 	public long getLogLength() {
 		return logLength;

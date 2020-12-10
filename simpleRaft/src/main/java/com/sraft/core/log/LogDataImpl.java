@@ -425,4 +425,81 @@ public class LogDataImpl implements ILogData {
 		}
 		return count;
 	}
+
+	@Override
+	public List<LogData> getLogDataByCount(String logDataPath, long beginLogIndex, int logDataCount)
+			throws IOException {
+		List<LogData> logDataList = new ArrayList<LogData>();
+		RandomAccessFile raf = null;
+		File file = new File(logDataPath);
+		if (!file.exists()) {
+			return logDataList;
+		}
+		try {
+			LogData logData = null;
+			raf = new RandomAccessFile(file, "r");
+			byte[] byteArr = null;
+			while (raf.getFilePointer() != raf.length()) {
+				long temLogIndex = raf.readLong();
+				long temLogTerm = raf.readLong();
+				int temLogType = raf.readInt();
+				long logLength = raf.readLong();
+				if (temLogIndex >= beginLogIndex) {
+					logData = new LogData();
+					logData.setLogIndex(temLogIndex);
+					logData.setLogTerm(temLogTerm);
+					logData.setLogType(temLogType);
+					logData.setLogLength(logLength);
+					logData.setLeaderId(raf.readInt());
+					logData.setClientSessionId(raf.readLong());
+					logData.setClientTransactionId(raf.readLong());
+					logData.setSraftTransactionId(raf.readLong());
+					logData.setCreateTime(raf.readLong());
+					logData.setUpdateTime(raf.readLong());
+
+					int keyLength = raf.readInt();
+					logData.setKeyLength(keyLength);
+
+					byteArr = new byte[keyLength];
+					raf.read(byteArr);
+					String key = new String(byteArr, "UTF-8");
+					logData.setbKey(byteArr);
+					logData.setKey(key);
+
+					int valueLength = raf.readInt();
+					logData.setValueLength(valueLength);
+
+					byteArr = new byte[valueLength];
+					raf.read(byteArr);
+					String value = new String(byteArr, "UTF-8");
+					logData.setbValue(byteArr);
+					logData.setValue(value);
+
+					long offset = raf.getFilePointer();
+					logData.setOffset(offset);
+					byteArr = null;
+
+					logDataList.add(logData);
+					if (logDataList.size() >= logDataCount) {
+						break;
+					}
+				} else {
+					int remainType = (int) logLength - 28;
+					raf.skipBytes(remainType);
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new IOException(e);
+		} finally {
+			if (raf != null) {
+				try {
+					raf.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return logDataList;
+	}
 }

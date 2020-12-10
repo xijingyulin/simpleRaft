@@ -7,7 +7,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sraft.core.log.ILogEntry;
+import com.sraft.core.log.ILogSnap;
 import com.sraft.core.log.LogData;
 import com.sraft.core.log.Snapshot;
 
@@ -15,23 +15,25 @@ public class StatemachineManager implements IStatement {
 	private static Logger LOG = LoggerFactory.getLogger(StatemachineManager.class);
 	private IAction iAction = null;
 	private Statemachine statemachine = null;
-	private ILogEntry iLogEntry = null;
-	private long lastApplied = -1;
-	private long lastCommitId = -1;
+	private ILogSnap iLogSnap = null;
+	private volatile long lastApplied = -1;
+	private volatile long lastCommitId = -1;
 	// 客户端最后应用执行的操作
 
-	public StatemachineManager(ILogEntry iLogEntry) {
-		this.iLogEntry = iLogEntry;
+	public StatemachineManager(ILogSnap iLogSnap) {
+		this.iLogSnap = iLogSnap;
 		statemachine = new Statemachine();
 		iAction = new ActionImpl();
-		init();
+		restart();
 	}
 
-	public void init() {
-		List<Snapshot> allSnapshotList = iLogEntry.getAllSnapshot();
+	public void restart() {
+		iAction.clear(statemachine);
+
+		List<Snapshot> allSnapshotList = iLogSnap.getAllSnapshot();
 		List<LogData> allLogDataList = null;
 		try {
-			allLogDataList = iLogEntry.getAllLogData();
+			allLogDataList = iLogSnap.getAllLogData();
 		} catch (IOException e) {
 			e.printStackTrace();
 			LOG.error(e.getMessage(), e);
@@ -56,7 +58,15 @@ public class StatemachineManager implements IStatement {
 		}
 		if (allLogDataList != null && allLogDataList.size() > 0) {
 			for (LogData logData : allLogDataList) {
-				iAction.put(statemachine, logData.getKey(), logData.getValue());
+				int logType = logData.getLogType();
+				
+				if (logType == LogData.LOG_PUT) {
+					iAction.put(statemachine, logData.getKey(), logData.getValue());
+				} else if (logType == LogData.LOG_DEL) {
+					iAction.del(statemachine, logData.getKey());
+				} else if (logType == LogData.LOG_UPDATE) {
+					iAction.update(statemachine, logData.getKey(), logData.getValue());
+				}
 				updateApply(logData.getLogIndex());
 			}
 			allLogDataList.clear();
@@ -71,6 +81,11 @@ public class StatemachineManager implements IStatement {
 	@Override
 	public long getLastCommitId() {
 		return lastCommitId;
+	}
+
+	@Override
+	public boolean commit(long leaderCommit) {
+		return false;
 	}
 
 }

@@ -81,8 +81,8 @@ public class Candidate extends AbstractRoles {
 		requestVoteMsg.setNodeId(selfId);
 		requestVoteMsg.setTerm(currentTerm.get());
 		requestVoteMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
-		requestVoteMsg.setLastLogIndex(roleController.getiLogEntry().getLastLogIndex());
-		requestVoteMsg.setLastLogTerm(roleController.getiLogEntry().getLastLogTerm());
+		requestVoteMsg.setLastLogIndex(roleController.getiLogSnap().getLastLogIndex());
+		requestVoteMsg.setLastLogTerm(roleController.getiLogSnap().getLastLogTerm());
 		return requestVoteMsg;
 	}
 
