@@ -29,48 +29,24 @@ public class SendAppendLogWorker implements IFlowWorker {
 	private Leader leader;
 	private ServerAddress serverAddress;
 	private FollowStatus followStatus;
-	/**
-	 * 是否是领导者节点
-	 */
-	private boolean isLeader = false;
 
 	private static final int DATA_BATCH_NUM = 2000;
 
-	public SendAppendLogWorker(ServerAddress serverAddress, Leader leader, boolean isLeader) {
-		this.isLeader = isLeader;
+	public SendAppendLogWorker(ServerAddress serverAddress, Leader leader) {
 		this.leader = leader;
-		if (!isLeader) {
-			this.serverAddress = serverAddress;
-			this.followStatus = leader.getFollowStatusMap().get(serverAddress.getNodeId());
-		}
+		this.serverAddress = serverAddress;
+		this.followStatus = leader.getFollowStatusMap().get(serverAddress.getNodeId());
 	}
 
 	@Override
 	public void deliver(Object object) {
 		// 需要判断是否 领导者节点
 		AppendLogEntryMsg appendLogEntryMsg = (AppendLogEntryMsg) object;
-		if (isLeader) {
-			appendLogEntryLocally(appendLogEntryMsg);
+		if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_ORDINARY) {
+			appendLogEntry(appendLogEntryMsg);
 		} else {
-			if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_ORDINARY) {
-				appendLogEntry(appendLogEntryMsg);
-			} else {
-				synLogEntry(appendLogEntryMsg);
-			}
+			synLogEntry(appendLogEntryMsg);
 		}
-
-	}
-
-	public void appendLogEntryLocally(AppendLogEntryMsg appendLogEntryMsg) {
-		boolean isSuccess = false;
-		EnumAppendLogResult result = leader.getRoleController().getiLogSnap().appendLogEntry(appendLogEntryMsg);
-		if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
-			isSuccess = true;
-		} else {
-			isSuccess = false;
-			LOG.error("【严重异常，写日志到本地出错！！！】");
-		}
-		leader.updateAppendTask(isSuccess);
 	}
 
 	public boolean appendLogEntry(AppendLogEntryMsg appendLogEntryMsg) {

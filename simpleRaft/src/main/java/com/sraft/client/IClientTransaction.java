@@ -1,12 +1,16 @@
 package com.sraft.client;
 
+import com.sraft.client.exception.KeyNullException;
+import com.sraft.client.exception.UnavailableException;
+import com.sraft.client.exception.ValueNullException;
+
 public interface IClientTransaction {
 
-	void put(String key, String value);
+	ActionResult put(String key, String value) throws UnavailableException, KeyNullException, ValueNullException;
 
-	void update(String key, String value);
+	ActionResult update(String key, String value) throws UnavailableException, KeyNullException, ValueNullException;
 
-	void remove(String key);
+	ActionResult remove(String key) throws UnavailableException, KeyNullException;
 
-	String get(String key);
+	ActionResult get(String key) throws UnavailableException, KeyNullException;
 }

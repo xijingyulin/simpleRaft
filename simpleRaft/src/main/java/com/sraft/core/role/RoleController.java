@@ -18,10 +18,12 @@ import com.sraft.common.flow.FlowHeader;
 import com.sraft.core.data.IStatement;
 import com.sraft.core.data.StatemachineManager;
 import com.sraft.core.log.ILogSnap;
+import com.sraft.core.log.LogData;
 import com.sraft.core.log.LogSnapManager;
 import com.sraft.core.message.AppendLogEntryMsg;
 import com.sraft.core.message.AppendSnapshotMsg;
 import com.sraft.core.message.BaseLog;
+import com.sraft.core.message.BaseSnapshot;
 import com.sraft.core.message.HeartbeatMsg;
 import com.sraft.core.message.ServerMsg;
 import com.sraft.core.net.ConnManager;
@@ -65,6 +67,8 @@ public class RoleController {
 	private Map<Long, Session> sessionMap = new ConcurrentHashMap<Long, Session>();
 
 	private Lock sessionLock = new ReentrantLock();
+
+	private Lock logLock = new ReentrantLock();
 
 	//消息处理操作
 	public static final String LOGIN_WORKER = "LOGIN_WORKER";
@@ -398,6 +402,8 @@ public class RoleController {
 	}
 
 	public EnumAppendLogResult appendLogEntry(AppendLogEntryMsg appendLogEntryMsg) {
+		// 先将之前未提交的日志提交
+		logLock.lock();
 		EnumAppendLogResult result = iLogSnap.appendLogEntry(appendLogEntryMsg);
 		if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
 			if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_NULL) {
@@ -406,13 +412,72 @@ public class RoleController {
 				updateSession(appendLogEntryMsg.getBaseLogList());
 			}
 		}
-		//		if (iLogSnap.isNeedRebootStatemachine()) {
-		//			iStatement.restart();
-		//		}
+		if (iLogSnap.isNeedRebootStatemachine()) {
+			iStatement.restart();
+		} else {
+			// 如果不需重启状态机，
+			// （1）并且是同步类型的日志，则需要，将日志放到待提交的集合中，并且立刻提交
+			// （2）如果只是普通追加日志，则只需放到队列中，不需立刻提交
+			if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
+				if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_SYN) {
+					iStatement.commit(appendLogEntryMsg.getBaseLogList());
+				} else if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_ORDINARY) {
+					BaseLog baseLog = appendLogEntryMsg.getBaseLogList().get(0);
+					if (baseLog.getLogType() != LogData.LOG_GET) {
+						iStatement.putLogData(appendLogEntryMsg.getBaseLogList());
+					}
+				}
+			}
+		}
+		logLock.unlock();
+		return result;
+	}
+
+	public EnumAppendLogResult appendLogEntryLocally(AppendLogEntryMsg appendLogEntryMsg) {
+		// 先将之前未提交的日志提交
+		logLock.lock();
+		EnumAppendLogResult result = iLogSnap.appendLogEntry(appendLogEntryMsg);
+		if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
+			iStatement.putLogData(appendLogEntryMsg.getBaseLogList());
+		}
+		logLock.unlock();
 		return result;
 	}
 
 	public EnumAppendSnapshotResult appendSnapshot(AppendSnapshotMsg appendSnapshotMsg) {
-		return iLogSnap.appendSnapshot(appendSnapshotMsg);
+		logLock.lock();
+		EnumAppendSnapshotResult appendSnapshotResult = iLogSnap.appendSnapshot(appendSnapshotMsg);
+		if (iLogSnap.isNeedRebootStatemachine()) {
+			iStatement.restart();
+		} else {
+			List<BaseSnapshot> baseSnapshotList = appendSnapshotMsg.getBaseSnapshot();
+			iStatement.commitSnapshot(baseSnapshotList);
+		}
+		logLock.unlock();
+		return appendSnapshotResult;
+	}
+
+	public boolean commit(long leaderCommit) {
+		logLock.lock();
+		iStatement.commit(leaderCommit);
+		logLock.unlock();
+		return true;
+	}
+
+	/**
+	 * 
+	 * 领导者提交自己的日志
+	 * 
+	 * @return
+	 */
+	public boolean commit() {
+		logLock.lock();
+		iStatement.commit();
+		logLock.unlock();
+		return true;
+	}
+
+	public String getValue(String key) {
+		return iStatement.getValue(key);
 	}
 }

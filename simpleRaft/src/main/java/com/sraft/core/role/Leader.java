@@ -34,6 +34,7 @@ import com.sraft.core.role.sender.SendHeartbeartWorker;
 import com.sraft.core.schedule.ScheduleSession;
 import com.sraft.core.schedule.ScheduleHeartbeat;
 import com.sraft.core.session.Session;
+import com.sraft.enums.EnumAppendLogResult;
 import com.sraft.enums.EnumNodeStatus;
 import com.sraft.enums.EnumRole;
 
@@ -139,7 +140,11 @@ public class Leader extends AbstractRoles implements ILeader {
 		baseLog.setCreateTime(clientActionMsg.getSendTime());
 		baseLog.setKey(clientActionMsg.getKey());
 		baseLog.setLeaderId(selfId);
-		baseLog.setLogIndex(getRoleController().getiLogSnap().getLastLogIndex() + 1);
+		if (clientActionMsg.getActionType() != LogData.LOG_GET) {
+			baseLog.setLogIndex(getRoleController().getiLogSnap().getLastLogIndex() + 1);
+		} else {
+			baseLog.setLogIndex(-1);
+		}
 		baseLog.setLogTerm(getCurrentTerm());
 		baseLog.setLogType(clientActionMsg.getActionType());
 		baseLog.setSraftTransactionId(IdGenerateHelper.getNextSessionId());
@@ -157,14 +162,8 @@ public class Leader extends AbstractRoles implements ILeader {
 		pendingQueue.add(appendTask);
 		appendTask.setAllAppendNum(connAddressList.size() + 1);
 		BaseLog baseLog = appendTask.getBaseLog();
-		for (int i = 0; i <= connAddressList.size(); i++) {
-			int nodeId = -1;
-			// 发给领导者自己
-			if (i == connAddressList.size()) {
-				nodeId = selfId;
-			} else {
-				nodeId = connAddressList.get(i).getNodeId();
-			}
+		for (int i = -1; i < connAddressList.size(); i++) {
+			int nodeId = connAddressList.get(i).getNodeId();
 			AppendLogEntryMsg emptyMsg = getEmptyLogMsg();
 			emptyMsg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_ORDINARY);
 			emptyMsg.setPrevLogIndex(roleController.getiLogSnap().getLastLogIndex());
@@ -172,15 +171,31 @@ public class Leader extends AbstractRoles implements ILeader {
 			List<BaseLog> baseLogList = new ArrayList<BaseLog>();
 			baseLogList.add(baseLog);
 			emptyMsg.setBaseLogList(baseLogList);
-			String appendWorker = getAppendWorkerCard(nodeId);
-			try {
-				FlowHeader.putProducts(appendWorker, emptyMsg);
-			} catch (NoFlowLineException e) {
-				e.printStackTrace();
-				LOG.error(e.getMessage(), e);
+			if (i == -1) {
+				// 先提交领导者自己的日志
+				appendLogEntryLocally(emptyMsg);
+			} else {
+				String appendWorker = getAppendWorkerCard(nodeId);
+				try {
+					FlowHeader.putProducts(appendWorker, emptyMsg);
+				} catch (NoFlowLineException e) {
+					e.printStackTrace();
+					LOG.error(e.getMessage(), e);
+				}
 			}
 		}
+	}
 
+	public void appendLogEntryLocally(AppendLogEntryMsg appendLogEntryMsg) {
+		boolean isSuccess = false;
+		EnumAppendLogResult result = roleController.appendLogEntryLocally(appendLogEntryMsg);
+		if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
+			isSuccess = true;
+		} else {
+			isSuccess = false;
+			LOG.error("【严重异常，写日志到本地出错！！！】");
+		}
+		updateAppendTask(isSuccess);
 	}
 
 	public void initNodeStatus() {
@@ -206,25 +221,17 @@ public class Leader extends AbstractRoles implements ILeader {
 	 * 给每个跟随者分配专门的消息通道
 	 */
 	public void assignWorker() {
-		for (int i = 0; i <= connAddressList.size(); i++) {
-			int nodeId = -1;
-			ServerAddress serverAddress = null;
-			boolean isLeader = false;
-			if (i == connAddressList.size()) {
-				serverAddress = null;
-				nodeId = selfId;
-				isLeader = true;
-			} else {
-				// 领导者自己不需心跳通道
-				serverAddress = connAddressList.get(i);
-				nodeId = serverAddress.getNodeId();
-				String heartbeatWorkerCard = getHeartbeatWorkerCard(nodeId);
-				IFlowWorker heartbeatWorker = new SendHeartbeartWorker(serverAddress, this);
-				FlowHeader.employ(heartbeatWorkerCard, heartbeatWorker);
+		for (int i = 0; i < connAddressList.size(); i++) {
 
-			}
+			ServerAddress serverAddress = connAddressList.get(i);
+			int nodeId = serverAddress.getNodeId();
+
+			String heartbeatWorkerCard = getHeartbeatWorkerCard(nodeId);
+			IFlowWorker heartbeatWorker = new SendHeartbeartWorker(serverAddress, this);
+			FlowHeader.employ(heartbeatWorkerCard, heartbeatWorker);
+
 			String actionWorkerCard = getAppendWorkerCard(nodeId);
-			IFlowWorker actionWorker = new SendAppendLogWorker(null, this, isLeader);
+			IFlowWorker actionWorker = new SendAppendLogWorker(serverAddress, this);
 			FlowHeader.employ(actionWorkerCard, actionWorker);
 		}
 	}
@@ -233,27 +240,22 @@ public class Leader extends AbstractRoles implements ILeader {
 	 * 删除每个跟随者的消息通道
 	 */
 	public void fireWorker() {
-		for (int i = 0; i <= connAddressList.size(); i++) {
-			int nodeId = -1;
-			if (i == connAddressList.size()) {
-				nodeId = selfId;
-			} else {
-				nodeId = connAddressList.get(i).getNodeId();
-				String heartbeatWorkerCard = getHeartbeatWorkerCard(nodeId);
-				FlowHeader.unEmploy(heartbeatWorkerCard);
-				FollowStatus followStatus = followStatusMap.get(nodeId);
-				BlockingQueue<Packet> followPendingQueue = followStatus.getPendingQueue();
-				synchronized (followPendingQueue) {
-					while (!followPendingQueue.isEmpty()) {
-						try {
-							Packet packet = followPendingQueue.take();
-							synchronized (packet) {
-								packet.notify();
-							}
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-							LOG.error(e.getMessage(), e);
+		for (int i = 0; i < connAddressList.size(); i++) {
+			int nodeId = connAddressList.get(i).getNodeId();
+			String heartbeatWorkerCard = getHeartbeatWorkerCard(nodeId);
+			FlowHeader.unEmploy(heartbeatWorkerCard);
+			FollowStatus followStatus = followStatusMap.get(nodeId);
+			BlockingQueue<Packet> followPendingQueue = followStatus.getPendingQueue();
+			synchronized (followPendingQueue) {
+				while (!followPendingQueue.isEmpty()) {
+					try {
+						Packet packet = followPendingQueue.take();
+						synchronized (packet) {
+							packet.notify();
 						}
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+						LOG.error(e.getMessage(), e);
 					}
 				}
 			}

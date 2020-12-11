@@ -15,7 +15,7 @@ public class ActionImpl implements IAction {
 	}
 
 	@Override
-	public boolean del(Statemachine statemachine, String key) {
+	public boolean remove(Statemachine statemachine, String key) {
 		statemachine.getStatemachine().remove(key);
 		return false;
 	}

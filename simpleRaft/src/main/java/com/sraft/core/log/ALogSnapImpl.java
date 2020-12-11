@@ -47,9 +47,13 @@ public abstract class ALogSnapImpl implements ILogSnap {
 	/**
 	 * 有些操作需要重启状态机；比如，
 	 * 
-	 * （1）遍历文件的一致性检查；
+	 * （1）遍历文件的一致性检查；在中间找到上一条日志
 	 * 
 	 * （2）日志不为空，但上一条索引却是快照最后一条日志，需要清空日志
+	 * 
+	 * （3）发送过来的是第一条日志，但快照和日志却不为空
+	 * 
+	 * （4）发送快照
 	 * 
 	 */
 	protected volatile boolean isChanged = false;

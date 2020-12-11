@@ -37,7 +37,7 @@ public class ClientConnManager {
 	private String LOGIN_SUCCESS = new String("LOGIN_SUCCESS");
 	private volatile EnumLoginStatus loginStatus = EnumLoginStatus.FALSE;
 	/**
-	 * 服务是否可用；登录成功并且领导者正常时，才是可用；否则都是不可用
+	 * 服务是否可用；登录成功并且过半节点存活，才是可用；否则都是不可用
 	 */
 	private volatile EnumServiceStatus serviceStatus = EnumServiceStatus.UN_USEFULL;
 	public static final int CLIENT_HEARTBEAT_INTERVAL = 300;

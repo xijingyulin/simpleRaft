@@ -99,6 +99,7 @@ public class ClientHeartbeatWorker extends Workder {
 			clientConnManager.updateServiceStatus(EnumServiceStatus.USEFULL);
 			clientConnManager.updateLastReceiveMsg(replyClientHeartbeatMsg);
 		} else {
+			clientConnManager.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
 			int errCode = replyClientHeartbeatMsg.getErrCode();
 			switch (errCode) {
 			case Msg.ERR_CODE_LOGIN_FOLLOWER:
@@ -111,7 +112,6 @@ public class ClientHeartbeatWorker extends Workder {
 				break;
 			case Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR:
 				clientConnManager.updateLastReceiveMsg(replyClientHeartbeatMsg);
-				clientConnManager.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
 				LOG.error("由于没有过半存活机器，领导者暂停服务");
 				break;
 			case Msg.ERR_CODE_SESSION_TIMEOUT:

@@ -2,6 +2,7 @@ package com.sraft.core.role.worker;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,12 +14,15 @@ import com.sraft.core.log.LogData;
 import com.sraft.core.message.BaseLog;
 import com.sraft.core.message.ClientActionMsg;
 import com.sraft.core.message.Msg;
+import com.sraft.core.message.Packet;
 import com.sraft.core.message.ReplyClientActionMsg;
 import com.sraft.core.role.AppendTask;
 import com.sraft.core.role.Candidate;
 import com.sraft.core.role.Follower;
 import com.sraft.core.role.Leader;
 import com.sraft.core.role.RoleController;
+import com.sraft.enums.EnumLoginStatus;
+import com.sraft.enums.EnumServiceStatus;
 
 import io.netty.channel.ChannelHandlerContext;
 
@@ -58,11 +62,6 @@ public class ClientActionWorker extends Workder {
 		long clientTransactionId = clientActionMsg.getTransactionId();
 		boolean isUpdate = roleController.updateSession(sessionId, receviceTime, clientTransactionId);
 		ReplyClientActionMsg replyClientActionMsg = new ReplyClientActionMsg();
-		replyClientActionMsg.setActionType(clientActionMsg.getActionType());
-		replyClientActionMsg.setMsgId(IdGenerateHelper.getMsgId());
-		replyClientActionMsg.setMsgType(Msg.TYPE_REPLY_CLIENT_ACTION);
-		replyClientActionMsg.setSessionId(sessionId);
-		replyClientActionMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		if (role == null) {
 			replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
 			replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
@@ -81,7 +80,7 @@ public class ClientActionWorker extends Workder {
 				replyClientActionMsg.setErrCode(Msg.ERR_CODE_SESSION_TIMEOUT);
 			} else {
 				Leader leader = (Leader) role;
-				if (leader.isAliveOverHalf()) {
+				if (!leader.isAliveOverHalf()) {
 					replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
 					replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR);
 				} else {
@@ -98,14 +97,10 @@ public class ClientActionWorker extends Workder {
 					}
 					if (appendTask.isOverHalfSuccess()) {
 						// 提交状态机
-							
-						// 
+						leader.getRoleController().commit();
 						if (baseLog.getLogType() == LogData.LOG_GET) {
-							
+							replyClientActionMsg.setValue(leader.getRoleController().getValue(baseLog.getKey()));
 						}
-						
-						
-						
 						replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
 					} else {
 						replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
@@ -114,10 +109,69 @@ public class ClientActionWorker extends Workder {
 				}
 			}
 		}
+		replyClientActionMsg.setActionType(clientActionMsg.getActionType());
+		replyClientActionMsg.setMsgId(IdGenerateHelper.getMsgId());
+		replyClientActionMsg.setMsgType(Msg.TYPE_REPLY_CLIENT_ACTION);
+		replyClientActionMsg.setSessionId(sessionId);
+		replyClientActionMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		ctx.writeAndFlush(replyClientActionMsg);
 	}
 
 	public void dealReplyClientActionMsg(ReplyClientActionMsg replyClientActionMsg) {
+		int result = replyClientActionMsg.getResult();
+		if (result == Msg.RETURN_STATUS_OK) {
+			clientConnManager.updateServiceStatus(EnumServiceStatus.USEFULL);
+			clientConnManager.updateLastReceiveMsg(replyClientActionMsg);
 
+			BlockingQueue<Packet> pendingQueue = clientConnManager.getPendingQueue();
+			synchronized (pendingQueue) {
+				if (!pendingQueue.isEmpty()) {
+					Packet packet = pendingQueue.remove();
+					synchronized (packet) {
+						packet.setReplyMsg(replyClientActionMsg);
+						packet.notify();
+					}
+				}
+			}
+
+		} else {
+			int errCode = replyClientActionMsg.getErrCode();
+			switch (errCode) {
+			case Msg.ERR_CODE_LOGIN_FOLLOWER:
+				clientConnManager.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
+				LOG.error("连接到跟随者,需要重新登录");
+				break;
+			case Msg.ERR_CODE_LOGIN_CANDIDATE:
+				clientConnManager.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
+				LOG.error("连接到候选者,需要重新登录");
+				break;
+			case Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR:
+				clientConnManager.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
+				clientConnManager.updateLastReceiveMsg(replyClientActionMsg);
+				LOG.error("由于没有过半存活机器，领导者暂停服务");
+				break;
+			case Msg.ERR_CODE_SESSION_TIMEOUT:
+				clientConnManager.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
+				LOG.error("会话超时,需要重新登录");
+				break;
+			case Msg.ERR_CODE_ROLE_CHANGED:
+				clientConnManager.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
+				LOG.error("角色已改变,需要重新登录");
+				break;
+			case Msg.ERR_CODE_LOG_APPEND_FALSE:
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
+				LOG.error("追加失败");
+				break;
+			default:
+				clientConnManager.updateServiceStatus(EnumServiceStatus.UN_USEFULL);
+				clientConnManager.updateLoginStatus(EnumLoginStatus.FALSE);
+				LOG.error("其它原因,需要重新登录");
+				break;
+			}
+		}
 	}
 }

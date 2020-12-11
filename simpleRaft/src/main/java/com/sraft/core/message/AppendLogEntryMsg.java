@@ -14,9 +14,6 @@ public class AppendLogEntryMsg extends ServerMsg {
 	private int appendType;
 	private long prevLogIndex;
 	private long prevLogTerm;
-	/**
-	 * 当 appendType == TYPE_APPEND_ORDINARY,跟随者才提交前面的
-	 */
 	private long leaderCommit;
 	private List<BaseLog> baseLogList;
 	private Map<Long, Session> sessionMap = new HashMap<Long, Session>();

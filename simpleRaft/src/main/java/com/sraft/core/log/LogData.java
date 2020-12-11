@@ -46,9 +46,9 @@ public class LogData extends BaseLog {
 
 	public final static int LOG_PUT = 1;
 	public final static int LOG_UPDATE = 2;
-	public final static int LOG_DEL = 3;
+	public final static int LOG_REMOVE = 3;
 	/**
-	 * 不需写入日志
+	 * 不需写入日志，不需要递增索引
 	 */
 	public final static int LOG_GET = 4;
 	/**

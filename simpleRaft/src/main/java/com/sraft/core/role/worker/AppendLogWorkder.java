@@ -75,6 +75,8 @@ public class AppendLogWorkder extends Workder {
 				Follower follower = (Follower) role;
 				follower.setHeartbeatMsg(appendLogEntryMsg);
 				follower.setLeaderId(appendLogEntryMsg.getNodeId());
+				//如果有未提交的日志，就先提交旧日志
+				follower.getRoleController().commit(appendLogEntryMsg.getLeaderCommit());
 				EnumAppendLogResult appendLogResult = follower.getRoleController().appendLogEntry(appendLogEntryMsg);
 				switch (appendLogResult) {
 				case LOG_NULL:

@@ -2,14 +2,23 @@ package com.sraft.core.data;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Vector;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sraft.common.StringHelper;
 import com.sraft.core.log.ILogSnap;
 import com.sraft.core.log.LogData;
 import com.sraft.core.log.Snapshot;
+import com.sraft.core.message.BaseLog;
+import com.sraft.core.message.BaseSnapshot;
 
 public class StatemachineManager implements IStatement {
 	private static Logger LOG = LoggerFactory.getLogger(StatemachineManager.class);
@@ -18,7 +27,10 @@ public class StatemachineManager implements IStatement {
 	private ILogSnap iLogSnap = null;
 	private volatile long lastApplied = -1;
 	private volatile long lastCommitId = -1;
-	// 客户端最后应用执行的操作
+	/**
+	 * 待提交队列
+	 */
+	private Map<Long, BaseLog> commitMap = new ConcurrentSkipListMap<>();
 
 	public StatemachineManager(ILogSnap iLogSnap) {
 		this.iLogSnap = iLogSnap;
@@ -43,10 +55,11 @@ public class StatemachineManager implements IStatement {
 			for (int i = 0; i < allSnapshotList.size(); i++) {
 				Snapshot snapshot = allSnapshotList.get(i);
 				try {
-					// 最后一条快照是记录最后的任期和索引
-					if (i < allSnapshotList.size() - 1) {
-						iAction.put(statemachine, new String(snapshot.getbKey(), "UTF-8"),
-								new String(snapshot.getbValue(), "UTF-8"));
+					String key = new String(snapshot.getbKey(), "UTF-8");
+					String value = new String(snapshot.getbValue(), "UTF-8");
+					// 最后一条快照是记录最后的任期和索引;key和value都为空
+					if (StringHelper.checkIsNotNull(key)) {
+						iAction.put(statemachine, key, value);
 					}
 					updateApply(snapshot.getLogIndex());
 				} catch (UnsupportedEncodingException e) {
@@ -58,18 +71,34 @@ public class StatemachineManager implements IStatement {
 		}
 		if (allLogDataList != null && allLogDataList.size() > 0) {
 			for (LogData logData : allLogDataList) {
-				int logType = logData.getLogType();
-				
-				if (logType == LogData.LOG_PUT) {
-					iAction.put(statemachine, logData.getKey(), logData.getValue());
-				} else if (logType == LogData.LOG_DEL) {
-					iAction.del(statemachine, logData.getKey());
-				} else if (logType == LogData.LOG_UPDATE) {
-					iAction.update(statemachine, logData.getKey(), logData.getValue());
-				}
-				updateApply(logData.getLogIndex());
+				commit(logData);
 			}
 			allLogDataList.clear();
+		}
+	}
+
+	private void commit(BaseLog baseLog) {
+		int logType = baseLog.getLogType();
+		if (logType == LogData.LOG_PUT) {
+			iAction.put(statemachine, baseLog.getKey(), baseLog.getValue());
+		} else if (logType == LogData.LOG_REMOVE) {
+			iAction.remove(statemachine, baseLog.getKey());
+		} else if (logType == LogData.LOG_UPDATE) {
+			iAction.update(statemachine, baseLog.getKey(), baseLog.getValue());
+		}
+		updateApply(baseLog.getLogIndex());
+	}
+
+	private void commit(BaseSnapshot baseSnapshot) {
+		try {
+			String key = new String(baseSnapshot.getbKey(), "UTF-8");
+			String value = new String(baseSnapshot.getbValue(), "UTF-8");
+			if (StringHelper.checkIsNotNull(key)) {
+				iAction.put(statemachine, key, value);
+			}
+			updateApply(baseSnapshot.getLogIndex());
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -85,7 +114,62 @@ public class StatemachineManager implements IStatement {
 
 	@Override
 	public boolean commit(long leaderCommit) {
+		long commitId = leaderCommit;
+		if (iLogSnap.getLastLogIndex() < leaderCommit) {
+			commitId = iLogSnap.getLastLogIndex();
+		}
+
+		Iterator<Long> it = commitMap.keySet().iterator();
+		while (it.hasNext()) {
+			Long logIndex = it.next();
+			if (logIndex <= commitId) {
+				BaseLog committingBaseLog = commitMap.get(logIndex);
+				commit(committingBaseLog);
+				it.remove();
+			}
+		}
+		return true;
+	}
+
+	@Override
+	public synchronized void putLogData(List<BaseLog> baseLogList) {
+		for (BaseLog baseLog : baseLogList) {
+			commitMap.put(baseLog.getLogIndex(), baseLog);
+		}
+	}
+
+	@Override
+	public boolean commit(List<BaseLog> baseLogList) {
+		for (BaseLog baseLog : baseLogList) {
+			commit(baseLog);
+		}
+		return true;
+	}
+
+	@Override
+	public boolean commitSnapshot(List<BaseSnapshot> baseSnapshotList) {
+		for (BaseSnapshot snapshot : baseSnapshotList) {
+			commit(snapshot);
+		}
 		return false;
+	}
+
+	@Override
+	public boolean commit() {
+		Iterator<Long> it = commitMap.keySet().iterator();
+		while (it.hasNext()) {
+			Long logIndex = it.next();
+			BaseLog committingBaseLog = commitMap.get(logIndex);
+			commit(committingBaseLog);
+			it.remove();
+		}
+		return true;
+	}
+
+	@Override
+	public String getValue(String key) {
+		// TODO Auto-generated method stub
+		return iAction.get(statemachine, key);
 	}
 
 }

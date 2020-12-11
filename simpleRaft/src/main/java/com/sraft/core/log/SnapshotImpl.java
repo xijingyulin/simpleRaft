@@ -147,7 +147,7 @@ public class SnapshotImpl implements ISnapshot {
 			if (type == LogData.LOG_PUT) {
 				oldStatemachine.remove(newKey);
 				oldStatemachine.put(newKey, snapshot);
-			} else if (type == LogData.LOG_DEL) {
+			} else if (type == LogData.LOG_REMOVE) {
 				oldStatemachine.remove(newKey);
 			} else if (type == LogData.LOG_UPDATE) {
 				oldStatemachine.remove(newKey);

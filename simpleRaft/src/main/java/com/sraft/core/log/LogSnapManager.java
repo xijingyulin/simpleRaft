@@ -82,9 +82,12 @@ public class LogSnapManager extends ALogSnapImpl {
 		}
 
 		if (isFirstLog(appendLogEntryMsg)) {
+			// 追加的是第一条日志，但本地却已经有其它日志了，所以需要清空
+			if (StringHelper.checkIsNotNull(logDataPath) || StringHelper.checkIsNotNull(snapshotPath)) {
+				isChanged = true;
+			}
 			clear();
 			isConsistency = true;
-			isChanged = true;
 		} else if (consistencyCheck(appendLogEntryMsg)) {
 			isConsistency = true;
 		} else if (consistencyCheckSnapshot(appendLogEntryMsg)) {
@@ -101,7 +104,6 @@ public class LogSnapManager extends ALogSnapImpl {
 			prevLogData = consistencyCheckAllLog(appendLogEntryMsg);
 			if (prevLogData != null) {
 				isConsistency = true;
-				isChanged = true;
 			}
 		}
 		if (!isConsistency) {
@@ -130,6 +132,7 @@ public class LogSnapManager extends ALogSnapImpl {
 				boolean isAppendSuccess = false;
 				if (prevLogData != null) {
 					isAppendSuccess = iLogData.append(logDataPath, prevLogData.getOffset(), logDataList);
+					isChanged = true;
 				} else {
 					isAppendSuccess = iLogData.append(logDataPath, logDataList);
 				}

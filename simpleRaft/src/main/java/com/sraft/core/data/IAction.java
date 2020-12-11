@@ -5,7 +5,7 @@ public interface IAction {
 
 	boolean update(Statemachine statemachine, String key, String value);
 
-	boolean del(Statemachine statemachine, String key);
+	boolean remove(Statemachine statemachine, String key);
 
 	String get(Statemachine statemachine, String key);
 	

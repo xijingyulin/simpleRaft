@@ -41,6 +41,10 @@ public class Msg {
 	public static final int TYPE_REPLY_APPEND_SNAPSHOT = 14;
 
 	// 客户端交互异常码
+	/**
+	 * 
+	 */
+	
 	public static final int ERR_CODE_LOGIN_FOLLOWER = 1;
 	public static final int ERR_CODE_LOGIN_CANDIDATE = 2;
 	/**
