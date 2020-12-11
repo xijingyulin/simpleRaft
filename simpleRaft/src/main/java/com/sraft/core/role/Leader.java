@@ -114,6 +114,7 @@ public class Leader extends AbstractRoles implements ILeader {
 		msg.setMsgId(IdGenerateHelper.getMsgId());
 		msg.setMsgType(Msg.TYPE_APPEND_LOG);
 		msg.setNodeId(selfId);
+		msg.setLeaderPort(roleController.getConfig().getClientPort());
 		msg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		msg.setTerm(getCurrentTerm());
 		msg.setTransactionId(IdGenerateHelper.getNextSessionId());
@@ -126,6 +127,7 @@ public class Leader extends AbstractRoles implements ILeader {
 		appendSnapshotMsg.setMsgId(IdGenerateHelper.getMsgId());
 		appendSnapshotMsg.setMsgType(Msg.TYPE_APPEND_SNAPSHOT);
 		appendSnapshotMsg.setNodeId(selfId);
+		appendSnapshotMsg.setLeaderPort(roleController.getConfig().getClientPort());
 		appendSnapshotMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		appendSnapshotMsg.setTerm(getCurrentTerm());
 		appendSnapshotMsg.setTransactionId(IdGenerateHelper.getNextSessionId());
@@ -283,6 +285,7 @@ public class Leader extends AbstractRoles implements ILeader {
 		msg.setMsgId(IdGenerateHelper.getMsgId());
 		msg.setMsgType(Msg.TYPE_HEARTBEAT);
 		msg.setNodeId(selfId);
+		msg.setLeaderPort(roleController.getConfig().getClientPort());
 		msg.setTerm(getCurrentTerm());
 		msg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		msg.getSessionMap().putAll(roleController.getSessionMap());

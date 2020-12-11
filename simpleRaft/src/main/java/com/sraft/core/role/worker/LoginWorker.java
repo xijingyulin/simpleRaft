@@ -79,7 +79,7 @@ public class LoginWorker extends Workder {
 			if (leaderId != -1) {
 				ServerAddress serverAddress = follower.getRoleController().getConfig().getServerAddressMap()
 						.get(leaderId);
-				replyLoginMsg.setRemark(serverAddress.getHost() + ":" + serverAddress.getPort());
+				replyLoginMsg.setRemark(serverAddress.getHost() + ":" + follower.getLeaderPort());
 			}
 			replyLoginMsg.setResult(Msg.RETURN_STATUS_FALSE);
 			replyLoginMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);

@@ -3,11 +3,14 @@ package com.sraft.core.role;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.sraft.core.message.HeartbeatMsg;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.sraft.core.message.ServerMsg;
 import com.sraft.enums.EnumRole;
 
 public abstract class AbstractRoles extends Thread implements IRole {
+	private static Logger LOG = LoggerFactory.getLogger(AbstractRoles.class);
 	protected RoleController roleController = null;
 
 	/**

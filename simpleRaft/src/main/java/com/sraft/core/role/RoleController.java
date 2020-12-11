@@ -173,7 +173,7 @@ public class RoleController {
 
 	public void changeRole(EnumRole newRole) {
 		LOG.info("转换角色,新角色【{}】", newRole);
-		this.playRole = newRole;
+		playRole = newRole;
 		role.interrupt();
 		synchronized (LOCK_CHANGE_ROLE) {
 			isChanged = false;

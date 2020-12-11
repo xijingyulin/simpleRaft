@@ -31,10 +31,15 @@ public class LogSnapManager extends ALogSnapImpl {
 	public List<LogData> getAllLogData() throws IOException {
 		getLock();
 		List<LogData> allLogDataList = new ArrayList<LogData>();
-		if (StringHelper.checkIsNotNull(logDataPath)) {
-			allLogDataList = iLogData.getAllLogData(logDataPath);
+		try {
+			if (StringHelper.checkIsNotNull(logDataPath)) {
+				allLogDataList = iLogData.getAllLogData(logDataPath);
+			}
+		} catch (IOException e) {
+			throw new IOException(e);
+		} finally {
+			unLock();
 		}
-		unLock();
 		return allLogDataList;
 	}
 
@@ -42,10 +47,15 @@ public class LogSnapManager extends ALogSnapImpl {
 	public List<Snapshot> getAllSnapshot() {
 		getLock();
 		List<Snapshot> allSnapshotList = new ArrayList<Snapshot>();
-		if (StringHelper.checkIsNotNull(snapshotPath)) {
-			allSnapshotList = iSnapshot.getAllSnapshot(snapshotPath);
+		try {
+			if (StringHelper.checkIsNotNull(snapshotPath)) {
+				allSnapshotList = iSnapshot.getAllSnapshot(snapshotPath);
+			}
+		} catch (Throwable e) {
+			e.printStackTrace();
+		} finally {
+			unLock();
 		}
-		unLock();
 		return allSnapshotList;
 	}
 
@@ -53,23 +63,12 @@ public class LogSnapManager extends ALogSnapImpl {
 	public EnumAppendLogResult appendLogEntry(AppendLogEntryMsg appendLogEntryMsg) {
 		getLock();
 		EnumAppendLogResult appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
-		LogData prevLogData = null;
-		boolean isConsistency = false;
-		int appendType = appendLogEntryMsg.getAppendType();
-		// 空日志只需一致性检查
-		if (appendType == AppendLogEntryMsg.TYPE_APPEND_NULL) {
-			if (consistencyCheck(appendLogEntryMsg)) {
-				appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
-			} else if (isNullServer()) {
-				appendResultEnum = EnumAppendLogResult.LOG_NULL;
-			} else {
-				appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
-			}
-			return appendResultEnum;
-		} else {
-			BaseLog baseLog = appendLogEntryMsg.getBaseLogList().get(0);
-			//如果是读请求，同样只需一致性检查
-			if (baseLog.getLogType() == LogData.LOG_GET) {
+		try {
+			LogData prevLogData = null;
+			boolean isConsistency = false;
+			int appendType = appendLogEntryMsg.getAppendType();
+			// 空日志只需一致性检查
+			if (appendType == AppendLogEntryMsg.TYPE_APPEND_NULL) {
 				if (consistencyCheck(appendLogEntryMsg)) {
 					appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
 				} else if (isNullServer()) {
@@ -78,77 +77,94 @@ public class LogSnapManager extends ALogSnapImpl {
 					appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
 				}
 				return appendResultEnum;
-			}
-		}
-
-		if (isFirstLog(appendLogEntryMsg)) {
-			// 追加的是第一条日志，但本地却已经有其它日志了，所以需要清空
-			if (StringHelper.checkIsNotNull(logDataPath) || StringHelper.checkIsNotNull(snapshotPath)) {
-				isChanged = true;
-			}
-			clear();
-			isConsistency = true;
-		} else if (consistencyCheck(appendLogEntryMsg)) {
-			isConsistency = true;
-		} else if (consistencyCheckSnapshot(appendLogEntryMsg)) {
-			isConsistency = true;
-			if (StringHelper.checkIsNotNull(logDataPath)) {
-				FileHelper.delFile(logDataPath);
-				lastLogData = null;
-				logDataPath = null;
-				lastLogIndex = lastSnapIndex;
-				lastLogTerm = lastSnapTerm;
-				isChanged = true;
-			}
-		} else {
-			prevLogData = consistencyCheckAllLog(appendLogEntryMsg);
-			if (prevLogData != null) {
-				isConsistency = true;
-			}
-		}
-		if (!isConsistency) {
-			//空服务器
-			if (lastLogData == null) {
-				appendResultEnum = EnumAppendLogResult.LOG_NULL;
 			} else {
-				appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
+				BaseLog baseLog = appendLogEntryMsg.getBaseLogList().get(0);
+				//如果是读请求，同样只需一致性检查
+				if (baseLog.getLogType() == LogData.LOG_GET) {
+					if (consistencyCheck(appendLogEntryMsg)) {
+						appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
+					} else if (isNullServer()) {
+						appendResultEnum = EnumAppendLogResult.LOG_NULL;
+					} else {
+						appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
+					}
+					return appendResultEnum;
+				}
 			}
-		} else {
-			// 没有日志，需要新建日志文件,日志名=目录+前缀+第一条日志sraft事务ID
-			if (lastLogData == null) {
-				logDataPath = logDataDir + File.separator + PREFIX_LOG_DATA
-						+ appendLogEntryMsg.getBaseLogList().get(0).getSraftTransactionId() + ".log";
+
+			if (isFirstLog(appendLogEntryMsg)) {
+				// 追加的是第一条日志，但本地却已经有其它日志了，所以需要清空
+				if (StringHelper.checkIsNotNull(logDataPath) || StringHelper.checkIsNotNull(snapshotPath)) {
+					isChanged = true;
+				}
+				clear();
+				isConsistency = true;
+			} else if (consistencyCheck(appendLogEntryMsg)) {
+				isConsistency = true;
+			} else if (consistencyCheckSnapshot(appendLogEntryMsg)) {
+				isConsistency = true;
+				if (StringHelper.checkIsNotNull(logDataPath)) {
+					FileHelper.delFile(logDataPath);
+					lastLogData = null;
+					logDataPath = null;
+					lastLogIndex = lastSnapIndex;
+					lastLogTerm = lastSnapTerm;
+					isChanged = true;
+				}
+			} else {
+				prevLogData = consistencyCheckAllLog(appendLogEntryMsg);
+				if (prevLogData != null) {
+					isConsistency = true;
+				}
+			}
+			if (!isConsistency) {
+				//空服务器
+				if (lastLogData == null) {
+					appendResultEnum = EnumAppendLogResult.LOG_NULL;
+				} else {
+					appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
+				}
+			} else {
+				// 没有日志，需要新建日志文件,日志名=目录+前缀+第一条日志sraft事务ID
+				if (lastLogData == null) {
+					logDataPath = logDataDir + File.separator + PREFIX_LOG_DATA
+							+ appendLogEntryMsg.getBaseLogList().get(0).getSraftTransactionId() + ".log";
+					try {
+						FileHelper.createNewEmptyFile(logDataPath);
+					} catch (IOException e) {
+						e.printStackTrace();
+						LOG.error("追加日志，创建日志文件失败:{}", logDataPath);
+						LOG.error(e.getMessage(), e);
+						appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
+					}
+				}
 				try {
-					FileHelper.createNewEmptyFile(logDataPath);
+					List<LogData> logDataList = transMsg2LogData(appendLogEntryMsg);
+					boolean isAppendSuccess = false;
+					if (prevLogData != null) {
+						isAppendSuccess = iLogData.append(logDataPath, prevLogData.getOffset(), logDataList);
+						isChanged = true;
+					} else {
+						isAppendSuccess = iLogData.append(logDataPath, logDataList);
+					}
+					if (isAppendSuccess) {
+						updateLastLogData(logDataList.get(logDataList.size() - 1));
+						appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
+					} else {
+						appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
+					}
 				} catch (IOException e) {
 					e.printStackTrace();
-					LOG.error("追加日志，创建日志文件失败:{}", logDataPath);
 					LOG.error(e.getMessage(), e);
 					appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
 				}
 			}
-			try {
-				List<LogData> logDataList = transMsg2LogData(appendLogEntryMsg);
-				boolean isAppendSuccess = false;
-				if (prevLogData != null) {
-					isAppendSuccess = iLogData.append(logDataPath, prevLogData.getOffset(), logDataList);
-					isChanged = true;
-				} else {
-					isAppendSuccess = iLogData.append(logDataPath, logDataList);
-				}
-				if (isAppendSuccess) {
-					updateLastLogData(logDataList.get(logDataList.size() - 1));
-					appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
-				} else {
-					appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-				LOG.error(e.getMessage(), e);
-				appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
-			}
+		} catch (Throwable e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
+		} finally {
+			unLock();
 		}
-		unLock();
 		return appendResultEnum;
 	}
 
@@ -156,43 +172,49 @@ public class LogSnapManager extends ALogSnapImpl {
 	public EnumAppendSnapshotResult appendSnapshot(AppendSnapshotMsg appendSnapshotMsg) {
 		getLock();
 		EnumAppendSnapshotResult appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
-		long prevSnapIndex = appendSnapshotMsg.getPrevSnapIndex();
-		long prevSnapTerm = appendSnapshotMsg.getPrevSnapTerm();
-		// 第一个快照，需要清空所有日志信息
-		if (prevSnapIndex == -1 && prevSnapTerm == -1) {
-			isChanged = true;
-			clear();
-			snapshotPath = logDataDir + File.separator + PREFIX_SNAPSHOT
-					+ appendSnapshotMsg.getBaseSnapshot().get(0).getLogIndex() + ".snapshot";
-			try {
-				FileHelper.createNewEmptyFile(snapshotPath);
-			} catch (IOException e) {
-				e.printStackTrace();
-				appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
-			}
-		}
-		boolean isConsistency = checkSnapConsistency(appendSnapshotMsg);
-		if (isConsistency) {
-			List<Snapshot> snapshotList = transMsg2Snapshot(appendSnapshotMsg);
-			try {
-				boolean isSuccess = iSnapshot.appendSnapshot(snapshotPath, snapshotList);
-				if (isSuccess) {
-					isChanged = true;
-					appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_TRUE;
-					updateLastSnapshot(snapshotList.get(snapshotList.size() - 1));
-				} else {
+		try {
+			long prevSnapIndex = appendSnapshotMsg.getPrevSnapIndex();
+			long prevSnapTerm = appendSnapshotMsg.getPrevSnapTerm();
+			// 第一个快照，需要清空所有日志信息
+			if (prevSnapIndex == -1 && prevSnapTerm == -1) {
+				isChanged = true;
+				clear();
+				snapshotPath = logDataDir + File.separator + PREFIX_SNAPSHOT
+						+ appendSnapshotMsg.getBaseSnapshot().get(0).getLogIndex() + ".snapshot";
+				try {
+					FileHelper.createNewEmptyFile(snapshotPath);
+				} catch (IOException e) {
+					e.printStackTrace();
 					appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
 				}
-			} catch (Exception e) {
-				e.printStackTrace();
-				appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
-				LOG.error(e.getMessage(), e);
-				LOG.error("安装快照失败,snapshotPath:{}", snapshotPath);
 			}
-		} else {
-			appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
+			boolean isConsistency = checkSnapConsistency(appendSnapshotMsg);
+			if (isConsistency) {
+				List<Snapshot> snapshotList = transMsg2Snapshot(appendSnapshotMsg);
+				try {
+					boolean isSuccess = iSnapshot.appendSnapshot(snapshotPath, snapshotList);
+					if (isSuccess) {
+						isChanged = true;
+						appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_TRUE;
+						updateLastSnapshot(snapshotList.get(snapshotList.size() - 1));
+					} else {
+						appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+					appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
+					LOG.error(e.getMessage(), e);
+					LOG.error("安装快照失败,snapshotPath:{}", snapshotPath);
+				}
+			} else {
+				appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
+			}
+		} catch (Throwable e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
+		} finally {
+			unLock();
 		}
-		unLock();
 		return appendSnapshotResult;
 	}
 
@@ -206,12 +228,12 @@ public class LogSnapManager extends ALogSnapImpl {
 	@Override
 	public boolean doGenSnapshot() {
 		boolean isSuccess = false;
+		getLock();
 		//读取日志行数
 		//判断是否满足压缩条件
 		//进行压缩生成快照
 		//更新状态
 		try {
-			getLock();
 			int logDataCount = iLogData.getLogDataCount(logDataPath);
 			if (logDataCount > compressTrigger) {
 				String[] pathArr = iSnapshot.genSnapshot(iLogData, logDataDir, snapshotPath, logDataPath,
@@ -256,8 +278,9 @@ public class LogSnapManager extends ALogSnapImpl {
 		} catch (IOException e) {
 			e.printStackTrace();
 			LOG.error(e.getMessage(), e);
+		} finally {
+			unLock();
 		}
-		unLock();
 		return logData;
 	}
 
@@ -275,11 +298,14 @@ public class LogSnapManager extends ALogSnapImpl {
 	public boolean isNeedRebootStatemachine() {
 		getLock();
 		boolean result = false;
-		if (isChanged == true) {
-			isChanged = false;
-			result = true;
+		try {
+			if (isChanged == true) {
+				isChanged = false;
+				result = true;
+			}
+		} finally {
+			unLock();
 		}
-		unLock();
 		return result;
 	}
 
@@ -292,8 +318,9 @@ public class LogSnapManager extends ALogSnapImpl {
 		} catch (IOException e) {
 			e.printStackTrace();
 			LOG.error(e.getMessage(), e);
+		} finally {
+			unLock();
 		}
-		unLock();
 		return logDataList;
 	}
 
@@ -306,8 +333,9 @@ public class LogSnapManager extends ALogSnapImpl {
 		} catch (Exception e) {
 			e.printStackTrace();
 			LOG.error(e.getMessage(), e);
+		} finally {
+			unLock();
 		}
-		unLock();
 		return snapshotList;
 	}
 

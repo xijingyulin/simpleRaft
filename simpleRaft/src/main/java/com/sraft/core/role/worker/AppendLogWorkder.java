@@ -75,6 +75,7 @@ public class AppendLogWorkder extends Workder {
 				Follower follower = (Follower) role;
 				follower.setHeartbeatMsg(appendLogEntryMsg);
 				follower.setLeaderId(appendLogEntryMsg.getNodeId());
+				follower.setLeaderPort(appendLogEntryMsg.getLeaderPort());
 				//如果有未提交的日志，就先提交旧日志
 				follower.getRoleController().commit(appendLogEntryMsg.getLeaderCommit());
 				EnumAppendLogResult appendLogResult = follower.getRoleController().appendLogEntry(appendLogEntryMsg);
@@ -183,6 +184,7 @@ public class AppendLogWorkder extends Workder {
 				Follower follower = (Follower) role;
 				follower.setHeartbeatMsg(appendSnapshotMsg);
 				follower.setLeaderId(appendSnapshotMsg.getNodeId());
+				follower.setLeaderPort(appendSnapshotMsg.getLeaderPort());
 				EnumAppendSnapshotResult appendSnapshotResult = follower.getRoleController()
 						.appendSnapshot(appendSnapshotMsg);
 				switch (appendSnapshotResult) {

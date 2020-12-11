@@ -66,6 +66,7 @@ public class HeartbeatWorker extends Workder {
 				Follower follower = (Follower) role;
 				follower.setHeartbeatMsg(heartbeatMsg);
 				follower.setLeaderId(heartbeatMsg.getNodeId());
+				follower.setLeaderPort(heartbeatMsg.getLeaderPort());
 				follower.getRoleController().commit(heartbeatMsg.getLeaderCommit());
 			}
 		} else {

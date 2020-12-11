@@ -1,17 +1,11 @@
 package com.sraft.core.role;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.sraft.core.schedule.ScheduleElectionTimeout;
-import com.sraft.core.session.Session;
 import com.sraft.enums.EnumRole;
 
 public class Follower extends AbstractRoles {
@@ -20,6 +14,7 @@ public class Follower extends AbstractRoles {
 	 * 跟随者需要知道领导者ID，主要给客户端重定向
 	 */
 	private int leaderId = -1;
+	private int leaderPort;
 
 	public Follower(RoleController roleController) throws IOException {
 		super(EnumRole.FOLLOWER, roleController);
@@ -82,9 +77,19 @@ public class Follower extends AbstractRoles {
 	}
 
 	public void setLeaderId(int receiveLeader) {
-		if (receiveLeader != this.leaderId) {
+		if (this.leaderId != receiveLeader) {
 			this.leaderId = receiveLeader;
 		}
 	}
-	
+
+	public int getLeaderPort() {
+		return leaderPort;
+	}
+
+	public void setLeaderPort(int leaderPort) {
+		if (this.leaderPort != leaderPort) {
+			this.leaderPort = leaderPort;
+		}
+	}
+
 }
