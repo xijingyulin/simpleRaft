@@ -164,12 +164,13 @@ public class Leader extends AbstractRoles implements ILeader {
 		pendingQueue.add(appendTask);
 		appendTask.setAllAppendNum(connAddressList.size() + 1);
 		BaseLog baseLog = appendTask.getBaseLog();
+		long prevLogIndex = roleController.getiLogSnap().getLastLogIndex();
+		long prevLogTerm = roleController.getiLogSnap().getLastLogTerm();
 		for (int i = -1; i < connAddressList.size(); i++) {
-			int nodeId = connAddressList.get(i).getNodeId();
 			AppendLogEntryMsg emptyMsg = getEmptyLogMsg();
 			emptyMsg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_ORDINARY);
-			emptyMsg.setPrevLogIndex(roleController.getiLogSnap().getLastLogIndex());
-			emptyMsg.setPrevLogTerm(roleController.getiLogSnap().getLastLogTerm());
+			emptyMsg.setPrevLogIndex(prevLogIndex);
+			emptyMsg.setPrevLogTerm(prevLogTerm);
 			List<BaseLog> baseLogList = new ArrayList<BaseLog>();
 			baseLogList.add(baseLog);
 			emptyMsg.setBaseLogList(baseLogList);
@@ -177,6 +178,7 @@ public class Leader extends AbstractRoles implements ILeader {
 				// 先提交领导者自己的日志
 				appendLogEntryLocally(emptyMsg);
 			} else {
+				int nodeId = connAddressList.get(i).getNodeId();
 				String appendWorker = getAppendWorkerCard(nodeId);
 				try {
 					FlowHeader.putProducts(appendWorker, emptyMsg);
@@ -349,18 +351,23 @@ public class Leader extends AbstractRoles implements ILeader {
 				int nodeId = serverAddress.getNodeId();
 				FollowStatus followStatus = followStatusMap.get(nodeId);
 				Msg lastMsg = followStatus.getLastReceviceMsg();
+				LOG.info("lastMsg:{}", lastMsg);
 				if (lastMsg != null) {
 					long receviceTime = lastMsg.getReceviceTime();
 					if (receviceTime >= minHeartTime) {
 						isAlive = true;
+					} else {
+						LOG.info("receviceTime:{},minHeartTime:{}", receviceTime, minHeartTime);
+
 					}
 				}
 				if (isAlive) {
-					if (followStatus.getStatus() == EnumNodeStatus.NODE_DEAD
-							|| followStatus.getStatus() == EnumNodeStatus.NODE_LOG_UNSYN) {
+					EnumNodeStatus nodeStatus = followStatus.getStatus();
+					if (nodeStatus == EnumNodeStatus.NODE_DEAD || nodeStatus == EnumNodeStatus.NODE_LOG_UNSYN) {
 						followStatus.setStatus(EnumNodeStatus.NODE_LOG_SYNING);
+						LOG.info("节点:{},状态:{},需要发送空日志同步", nodeId, nodeStatus);
 						sendEmptyLog(nodeId);
-					} else if (followStatus.getStatus() == EnumNodeStatus.NODE_NORMAL) {
+					} else if (nodeStatus == EnumNodeStatus.NODE_NORMAL) {
 						countAlive++;
 					}
 				} else {
@@ -382,17 +389,21 @@ public class Leader extends AbstractRoles implements ILeader {
 		synchronized (pendingQueue) {
 			AppendTask appendTask = pendingQueue.peek();
 			if (appendTask != null) {
-				if (isSuccess) {
-					appendTask.increSuccessNum();
-					if (appendTask.isOverHalfSuccess()) {
-						appendTask.notify();
-						pendingQueue.clear();
-					}
-				} else {
-					appendTask.increFailNum();
-					if (appendTask.isOverHalfFail()) {
-						appendTask.notify();
-						pendingQueue.clear();
+				synchronized (appendTask) {
+					if (appendTask != null) {
+						if (isSuccess) {
+							appendTask.increSuccessNum();
+							if (appendTask.isOverHalfSuccess()) {
+								appendTask.notify();
+								pendingQueue.clear();
+							}
+						} else {
+							appendTask.increFailNum();
+							if (appendTask.isOverHalfFail()) {
+								appendTask.notify();
+								pendingQueue.clear();
+							}
+						}
 					}
 				}
 			}

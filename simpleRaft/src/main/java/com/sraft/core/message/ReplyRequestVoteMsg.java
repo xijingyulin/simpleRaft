@@ -12,30 +12,26 @@ public class ReplyRequestVoteMsg extends ServerReply {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("getResult:");
-		builder.append(getResult());
-		builder.append(",getErrCode:");
-		builder.append(getErrCode());
-		builder.append(",getRemark:");
-		builder.append(getRemark());
-		builder.append(",toString:");
-		builder.append(super.toString());
-		builder.append(",getMsgId:");
-		builder.append(getMsgId());
-		builder.append(",getTerm:");
-		builder.append(getTerm());
-		builder.append(",getSendTime:");
-		builder.append(getSendTime());
-		builder.append(",getNodeId:");
-		builder.append(getNodeId());
-		builder.append(",getMsgType:");
-		builder.append(getMsgType());
-		builder.append(",getReceviceTime:");
-		builder.append(getReceviceTime());
-		builder.append(",getClass:");
-		builder.append(getClass());
-		builder.append(",hashCode:");
-		builder.append(hashCode());
+		builder.append("result:");
+		builder.append(result);
+		builder.append(",errCode:");
+		builder.append(errCode);
+		builder.append(",remark:");
+		builder.append(remark);
+		builder.append(",nodeId:");
+		builder.append(nodeId);
+		builder.append(",leaderPort:");
+		builder.append(leaderPort);
+		builder.append(",term:");
+		builder.append(term);
+		builder.append(",msgType:");
+		builder.append(msgType);
+		builder.append(",msgId:");
+		builder.append(msgId);
+		builder.append(",sendTime:");
+		builder.append(sendTime);
+		builder.append(",receviceTime:");
+		builder.append(receviceTime);
 		return builder.toString();
 	}
 

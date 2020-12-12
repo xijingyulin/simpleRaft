@@ -67,7 +67,9 @@ public class HeartbeatWorker extends Workder {
 				follower.setHeartbeatMsg(heartbeatMsg);
 				follower.setLeaderId(heartbeatMsg.getNodeId());
 				follower.setLeaderPort(heartbeatMsg.getLeaderPort());
+				LOG.info("开始提交");
 				follower.getRoleController().commit(heartbeatMsg.getLeaderCommit());
+				LOG.info("提交结束");
 			}
 		} else {
 			replyHeartbeatMsg.setResult(Msg.RETURN_STATUS_FALSE);

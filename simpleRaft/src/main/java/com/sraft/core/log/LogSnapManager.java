@@ -187,6 +187,10 @@ public class LogSnapManager extends ALogSnapImpl {
 					e.printStackTrace();
 					appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
 				}
+			} else {
+				if (!StringHelper.checkIsNotNull(snapshotPath)) {
+					LOG.error("这不是首条快照,但快照路径却为空");
+				}
 			}
 			boolean isConsistency = checkSnapConsistency(appendSnapshotMsg);
 			if (isConsistency) {
@@ -329,7 +333,9 @@ public class LogSnapManager extends ALogSnapImpl {
 		getLock();
 		List<Snapshot> snapshotList = new ArrayList<Snapshot>();
 		try {
-			snapshotList = iSnapshot.getSnapshotList(snapshotPath, beginSnapshotIndex, count);
+			if (StringHelper.checkIsNotNull(snapshotPath)) {
+				snapshotList = iSnapshot.getSnapshotList(snapshotPath, beginSnapshotIndex, count);
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 			LOG.error(e.getMessage(), e);

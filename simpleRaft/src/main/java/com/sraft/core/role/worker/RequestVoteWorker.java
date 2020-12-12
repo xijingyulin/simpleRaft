@@ -135,9 +135,9 @@ public class RequestVoteWorker extends Workder {
 	 */
 	public boolean checkLogIndexAndTerm(long fromTerm, long fromIndex) {
 		boolean isPass = false;
-		ILogSnap iLogEntry = role.getRoleController().getiLogSnap();
-		long currentLogTerm = iLogEntry.getLastLogTerm();
-		long currentLogIndex = iLogEntry.getLastLogTerm();
+		ILogSnap iLogSnap = role.getRoleController().getiLogSnap();
+		long currentLogTerm = iLogSnap.getLastLogTerm();
+		long currentLogIndex = iLogSnap.getLastLogIndex();
 		if (fromTerm > currentLogTerm) {
 			isPass = true;
 		} else if (fromTerm == currentLogTerm) {

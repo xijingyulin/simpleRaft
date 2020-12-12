@@ -66,9 +66,6 @@ public class SendAppendLogWorker implements IFlowWorker {
 			// 发送成功
 			if (isSend) {
 				followStatus.getPendingQueue().add(packet);
-			} else {
-				LOG.info("节点:{},追加日志失败", nodeId);
-				followStatus.setStatus(EnumNodeStatus.NODE_LOG_UNSYN);
 			}
 		}
 		try {
@@ -77,7 +74,9 @@ public class SendAppendLogWorker implements IFlowWorker {
 				synchronized (packet) {
 					packet.wait(1000);
 				}
-				followStatus.getPendingQueue().clear();
+				synchronized (followStatus.getPendingQueue()) {
+					followStatus.getPendingQueue().clear();
+				}
 				if (packet.getReplyMsg() == null) {
 					LOG.info("节点:{},没有响应", nodeId, packet.toString());
 					followStatus.setStatus(EnumNodeStatus.NODE_LOG_UNSYN);
@@ -111,6 +110,7 @@ public class SendAppendLogWorker implements IFlowWorker {
 							LOG.error("节点:{},出现领导者，网络分区或出现其它异常", nodeId);
 							break;
 						default:
+							LOG.error("节点:{},其它异常", nodeId);
 							break;
 						}
 						followStatus.setStatus(EnumNodeStatus.NODE_LOG_UNSYN);
@@ -118,6 +118,7 @@ public class SendAppendLogWorker implements IFlowWorker {
 					}
 				}
 			} else {
+				LOG.error("节点:{},发送追加日志消息失败", nodeId);
 				followStatus.setStatus(EnumNodeStatus.NODE_DEAD);
 				leader.updateAppendTask(false);
 			}
@@ -146,9 +147,6 @@ public class SendAppendLogWorker implements IFlowWorker {
 			// 发送成功
 			if (isSend) {
 				followStatus.getPendingQueue().add(packet);
-			} else {
-				LOG.info("节点:{},追加日志失败", nodeId);
-				followStatus.setStatus(EnumNodeStatus.NODE_LOG_UNSYN);
 			}
 		}
 		try {
@@ -158,7 +156,7 @@ public class SendAppendLogWorker implements IFlowWorker {
 					packet.wait(1000);
 				}
 				followStatus.getPendingQueue().clear();
-				LOG.info("节点:{},追加日志处理完成:{}", nodeId, packet.toString());
+				LOG.info("节点:{},同步日志处理完成:{}", nodeId, packet.toString());
 				if (packet.getReplyMsg() == null) {
 					LOG.info("节点:{},没有响应", nodeId, packet.toString());
 					followStatus.setStatus(EnumNodeStatus.NODE_LOG_UNSYN);
@@ -211,6 +209,7 @@ public class SendAppendLogWorker implements IFlowWorker {
 					}
 				}
 			} else {
+				LOG.info("节点:{},发送日志失败", nodeId);
 				followStatus.setStatus(EnumNodeStatus.NODE_DEAD);
 			}
 		} catch (InterruptedException e) {

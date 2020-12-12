@@ -172,4 +172,9 @@ public class StatemachineManager implements IStatement {
 		return iAction.get(statemachine, key);
 	}
 
+	@Override
+	public boolean isNeedCommit() {
+		return (!commitMap.isEmpty());
+	}
+
 }

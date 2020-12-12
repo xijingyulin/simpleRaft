@@ -23,6 +23,8 @@ public interface IStatement {
 	boolean commit(List<BaseLog> baseLogList);
 
 	boolean commitSnapshot(List<BaseSnapshot> baseSnapshotList);
+	
+	boolean isNeedCommit();
 
 	/**
 	 * 将待提交的日志放到队列中

@@ -458,10 +458,18 @@ public class RoleController {
 	}
 
 	public boolean commit(long leaderCommit) {
-		logLock.lock();
-		iStatement.commit(leaderCommit);
-		logLock.unlock();
-		return true;
+		if (iStatement.isNeedCommit()) {
+			LOG.info("1");
+			logLock.lock();
+			LOG.info("2");
+			iStatement.commit(leaderCommit);
+			LOG.info("3");
+			logLock.unlock();
+			LOG.info("4");
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	/**
