@@ -297,7 +297,7 @@ public class SendAppendLogWorker implements IFlowWorker {
 	public BaseLog tranLogData2BaseLog(LogData logData) {
 		BaseLog baseLog = new BaseLog();
 		baseLog.setClientSessionId(logData.getClientSessionId());
-		baseLog.setClientTransactionId(baseLog.getClientTransactionId());
+		baseLog.setClientTransactionId(logData.getClientTransactionId());
 		baseLog.setCreateTime(logData.getCreateTime());
 		baseLog.setKey(logData.getKey());
 		baseLog.setLeaderId(logData.getLeaderId());
