@@ -62,7 +62,7 @@ public class LogSnapManager extends ALogSnapImpl {
 	@Override
 	public EnumAppendLogResult appendLogEntry(AppendLogEntryMsg appendLogEntryMsg) {
 		getLock();
-		EnumAppendLogResult appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
+		EnumAppendLogResult appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
 		try {
 			LogData prevLogData = null;
 			boolean isConsistency = false;

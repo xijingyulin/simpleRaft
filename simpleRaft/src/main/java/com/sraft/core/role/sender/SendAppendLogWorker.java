@@ -431,13 +431,16 @@ public class SendAppendLogWorker implements IFlowWorker {
 	 * 对空服务器，需要将所有已经日志发送给它
 	 */
 	public boolean synAllLogEntry() {
+		// 首先重置匹配索引位置
+		followStatus.setMatchIndex(0);
 		boolean isSuccess = true;
 		long prevLogIndex = leader.getRoleController().getiLogSnap().getLastSnapIndex();
 		long prevLogTerm = leader.getRoleController().getiLogSnap().getLastSnapTerm();
+		long beginLogIndex = 0;
+		long matchIndex = 0;
 		while (true) {
-			long beginLogIndex = followStatus.getMatchIndex() + 1;
-			long lastLogTerm = leader.getRoleController().getiLogSnap().getLastLogIndex();
-			if (beginLogIndex == lastLogTerm) {
+			long lastLogIndex = leader.getRoleController().getiLogSnap().getLastLogIndex();
+			if (matchIndex == lastLogIndex || lastLogIndex < 0) {
 				leader.sendEmptyLog(followStatus.getNodeId());
 				break;
 			}
@@ -455,6 +458,8 @@ public class SendAppendLogWorker implements IFlowWorker {
 				LOG.info("同步日志成功,开始位置:{}", beginLogIndex);
 				prevLogIndex = baseLogList.get(baseLogList.size() - 1).getLogIndex();
 				prevLogTerm = baseLogList.get(baseLogList.size() - 1).getLogTerm();
+				matchIndex = followStatus.getMatchIndex();
+				beginLogIndex = matchIndex + 1;
 			} else {
 				isSuccess = false;
 				LOG.error("严重异常,同步日志失败:{}", msg.toString());
