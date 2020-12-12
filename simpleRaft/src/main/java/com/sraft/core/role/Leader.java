@@ -351,14 +351,10 @@ public class Leader extends AbstractRoles implements ILeader {
 				int nodeId = serverAddress.getNodeId();
 				FollowStatus followStatus = followStatusMap.get(nodeId);
 				Msg lastMsg = followStatus.getLastReceviceMsg();
-				LOG.info("lastMsg:{}", lastMsg);
 				if (lastMsg != null) {
 					long receviceTime = lastMsg.getReceviceTime();
 					if (receviceTime >= minHeartTime) {
 						isAlive = true;
-					} else {
-						LOG.info("receviceTime:{},minHeartTime:{}", receviceTime, minHeartTime);
-
 					}
 				}
 				if (isAlive) {

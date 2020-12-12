@@ -75,11 +75,11 @@ public abstract class Workder implements IFlowWorker {
 	 * @param fromTerm
 	 * @return
 	 */
-	//	public boolean isLargeTerm(long fromTerm) {
-	//		if (fromTerm > role.getCurrentTerm()) {
-	//			return true;
-	//		} else {
-	//			return false;
-	//		}
-	//	}
+	protected boolean checkTerm(long fromTerm) {
+		if (fromTerm >= role.getCurrentTerm()) {
+			return true;
+		} else {
+			return false;
+		}
+	}
 }

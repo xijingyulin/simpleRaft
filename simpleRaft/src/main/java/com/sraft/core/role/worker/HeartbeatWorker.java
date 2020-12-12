@@ -67,23 +67,13 @@ public class HeartbeatWorker extends Workder {
 				follower.setHeartbeatMsg(heartbeatMsg);
 				follower.setLeaderId(heartbeatMsg.getNodeId());
 				follower.setLeaderPort(heartbeatMsg.getLeaderPort());
-				LOG.info("开始提交");
-				follower.getRoleController().commit(heartbeatMsg.getLeaderCommit());
-				LOG.info("提交结束");
+				follower.getRoleController().tryCommit(heartbeatMsg.getLeaderCommit());
 			}
 		} else {
 			replyHeartbeatMsg.setResult(Msg.RETURN_STATUS_FALSE);
 			replyHeartbeatMsg.setErrCode(Msg.ERR_CODE_LOG_LARGE_TERM);
 		}
 		ctx.writeAndFlush(replyHeartbeatMsg);
-	}
-
-	public boolean checkTerm(long fromTerm) {
-		if (fromTerm >= role.getCurrentTerm()) {
-			return true;
-		} else {
-			return false;
-		}
 	}
 
 	public void dealReplyHeartbeatMsg(ReplyHeartbeatMsg replyHeartbeatMsg) {

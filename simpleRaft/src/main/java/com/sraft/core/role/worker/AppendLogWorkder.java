@@ -149,14 +149,6 @@ public class AppendLogWorkder extends Workder {
 		}
 	}
 
-	public boolean checkTerm(long fromTerm) {
-		if (fromTerm >= role.getCurrentTerm()) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-
 	public void dealAppendSnapshotMsg(ChannelHandlerContext ctx, AppendSnapshotMsg appendSnapshotMsg) {
 		long fromTerm = appendSnapshotMsg.getTerm();
 		boolean isPassTerm = checkTerm(fromTerm);

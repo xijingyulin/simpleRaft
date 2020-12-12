@@ -404,72 +404,113 @@ public class RoleController {
 	public EnumAppendLogResult appendLogEntry(AppendLogEntryMsg appendLogEntryMsg) {
 		// 先将之前未提交的日志提交
 		logLock.lock();
-		EnumAppendLogResult result = iLogSnap.appendLogEntry(appendLogEntryMsg);
-		if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
-			if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_NULL) {
-				updateSession(appendLogEntryMsg.getSessionMap(), true);
-			} else if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_ORDINARY) {
-				updateSession(appendLogEntryMsg.getBaseLogList());
-			}
-		}
-		if (iLogSnap.isNeedRebootStatemachine()) {
-			iStatement.restart();
-		} else {
-			// 如果不需重启状态机，
-			// （1）并且是同步类型的日志，则需要，将日志放到待提交的集合中，并且立刻提交
-			// （2）如果只是普通追加日志，则只需放到队列中，不需立刻提交
+		EnumAppendLogResult result = EnumAppendLogResult.LOG_CHECK_FALSE;
+		try {
+			result = iLogSnap.appendLogEntry(appendLogEntryMsg);
 			if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
-				if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_SYN) {
-					iStatement.commit(appendLogEntryMsg.getBaseLogList());
+				if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_NULL) {
+					updateSession(appendLogEntryMsg.getSessionMap(), true);
 				} else if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_ORDINARY) {
-					BaseLog baseLog = appendLogEntryMsg.getBaseLogList().get(0);
-					if (baseLog.getLogType() != LogData.LOG_GET) {
-						iStatement.putLogData(appendLogEntryMsg.getBaseLogList());
+					updateSession(appendLogEntryMsg.getBaseLogList());
+				}
+			}
+			if (iLogSnap.isNeedRebootStatemachine()) {
+				iStatement.restart();
+			} else {
+				// 如果不需重启状态机，
+				// （1）并且是同步类型的日志，则需要，将日志放到待提交的集合中，并且立刻提交
+				// （2）如果只是普通追加日志，则只需放到队列中，不需立刻提交
+				if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
+					if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_SYN) {
+						iStatement.commit(appendLogEntryMsg.getBaseLogList());
+					} else if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_ORDINARY) {
+						BaseLog baseLog = appendLogEntryMsg.getBaseLogList().get(0);
+						if (baseLog.getLogType() != LogData.LOG_GET) {
+							iStatement.putLogData(appendLogEntryMsg.getBaseLogList());
+						}
 					}
 				}
 			}
+		} catch (Throwable e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
+		} finally {
+			logLock.unlock();
 		}
-		logLock.unlock();
 		return result;
 	}
 
 	public EnumAppendLogResult appendLogEntryLocally(AppendLogEntryMsg appendLogEntryMsg) {
 		// 先将之前未提交的日志提交
 		logLock.lock();
-		EnumAppendLogResult result = iLogSnap.appendLogEntry(appendLogEntryMsg);
-		if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
-			iStatement.putLogData(appendLogEntryMsg.getBaseLogList());
+		EnumAppendLogResult result = EnumAppendLogResult.LOG_CHECK_FALSE;
+		try {
+			result = iLogSnap.appendLogEntry(appendLogEntryMsg);
+			if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
+				iStatement.putLogData(appendLogEntryMsg.getBaseLogList());
+			}
+		} catch (Throwable e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
+		} finally {
+			logLock.unlock();
 		}
-		logLock.unlock();
 		return result;
 	}
 
 	public EnumAppendSnapshotResult appendSnapshot(AppendSnapshotMsg appendSnapshotMsg) {
 		logLock.lock();
-		EnumAppendSnapshotResult appendSnapshotResult = iLogSnap.appendSnapshot(appendSnapshotMsg);
-		if (iLogSnap.isNeedRebootStatemachine()) {
-			iStatement.restart();
-		} else {
-			List<BaseSnapshot> baseSnapshotList = appendSnapshotMsg.getBaseSnapshot();
-			iStatement.commitSnapshot(baseSnapshotList);
+		EnumAppendSnapshotResult appendSnapshotResult = EnumAppendSnapshotResult.SNAPSHOT_APPEND_FALSE;
+		try {
+			appendSnapshotResult = iLogSnap.appendSnapshot(appendSnapshotMsg);
+			if (iLogSnap.isNeedRebootStatemachine()) {
+				iStatement.restart();
+			} else {
+				List<BaseSnapshot> baseSnapshotList = appendSnapshotMsg.getBaseSnapshot();
+				iStatement.commitSnapshot(baseSnapshotList);
+			}
+		} catch (Throwable e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
+		} finally {
+			logLock.unlock();
 		}
-		logLock.unlock();
 		return appendSnapshotResult;
 	}
 
 	public boolean commit(long leaderCommit) {
 		if (iStatement.isNeedCommit()) {
-			LOG.info("1");
 			logLock.lock();
-			LOG.info("2");
-			iStatement.commit(leaderCommit);
-			LOG.info("3");
-			logLock.unlock();
-			LOG.info("4");
-			return true;
-		} else {
-			return false;
+			try {
+				iStatement.commit(leaderCommit);
+			} catch (Throwable e) {
+				e.printStackTrace();
+				LOG.error(e.getMessage(), e);
+			} finally {
+				logLock.unlock();
+			}
 		}
+		return true;
+
+	}
+
+	/**
+	 * 心跳消息专用,心跳不能为了提交日志而阻塞心跳的回复，否则会造成领导者认为跟随者挂了
+	 * 
+	 * @param leaderCommit
+	 * @return
+	 */
+	public boolean tryCommit(long leaderCommit) {
+		if (iStatement.isNeedCommit()) {
+			if (logLock.tryLock()) {
+				try {
+					iStatement.commit(leaderCommit);
+				} finally {
+					logLock.unlock();
+				}
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -480,8 +521,14 @@ public class RoleController {
 	 */
 	public boolean commit() {
 		logLock.lock();
-		iStatement.commit();
-		logLock.unlock();
+		try {
+			iStatement.commit();
+		} catch (Throwable e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
+		} finally {
+			logLock.unlock();
+		}
 		return true;
 	}
 

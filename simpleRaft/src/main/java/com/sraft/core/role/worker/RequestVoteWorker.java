@@ -41,7 +41,6 @@ public class RequestVoteWorker extends Workder {
 	public void dealRequestVoteMsg(ChannelHandlerContext ctx, RequestVoteMsg requestVoteMsg) {
 
 		long fromTerm = requestVoteMsg.getTerm();
-		//boolean isLargeTerm = isLargeTerm(fromTerm);
 		boolean isPassTerm = checkTerm(fromTerm);
 		boolean isPassLog = checkLogIndexAndTerm(requestVoteMsg.getLastLogTerm(), requestVoteMsg.getLastLogIndex());
 		ReplyRequestVoteMsg reply = new ReplyRequestVoteMsg();
@@ -103,6 +102,7 @@ public class RequestVoteWorker extends Workder {
 	 * @param fromTerm
 	 * @return
 	 */
+	@Override
 	public boolean checkTerm(long fromTerm) {
 		boolean isPass = false;
 		if (fromTerm > role.getCurrentTerm()) {
