@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.sraft.common.FileHelper;
+import com.sraft.common.StringHelper;
 
 public class LogDataImpl implements ILogData {
 	private static Logger LOG = LoggerFactory.getLogger(LogDataImpl.class);
@@ -197,7 +198,11 @@ public class LogDataImpl implements ILogData {
 	public void tranLogData2Store(LogData logData) throws UnsupportedEncodingException {
 		logData.setbKey(logData.getKey().getBytes("UTF-8"));
 		logData.setKeyLength(logData.getbKey().length);
-		logData.setbValue(logData.getValue().getBytes("UTF-8"));
+		if (StringHelper.checkIsNotNull(logData.getValue())) {
+			logData.setbValue(logData.getValue().getBytes("UTF-8"));
+		} else {
+			logData.setbValue("".getBytes("UTF-8"));
+		}
 		logData.setValueLength(logData.getbValue().length);
 		logData.setLogLength(LogData.FIXED_BYTE_LENGTH + logData.getbKey().length + logData.getbValue().length);
 	}

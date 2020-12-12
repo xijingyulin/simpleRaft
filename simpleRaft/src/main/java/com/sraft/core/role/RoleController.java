@@ -424,10 +424,7 @@ public class RoleController {
 					if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_SYN) {
 						iStatement.commit(appendLogEntryMsg.getBaseLogList());
 					} else if (appendLogEntryMsg.getAppendType() == AppendLogEntryMsg.TYPE_APPEND_ORDINARY) {
-						BaseLog baseLog = appendLogEntryMsg.getBaseLogList().get(0);
-						if (baseLog.getLogType() != LogData.LOG_GET) {
-							iStatement.putLogData(appendLogEntryMsg.getBaseLogList());
-						}
+						iStatement.putLogData(appendLogEntryMsg.getBaseLogList());
 					}
 				}
 			}

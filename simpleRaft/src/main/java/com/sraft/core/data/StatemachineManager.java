@@ -81,12 +81,16 @@ public class StatemachineManager implements IStatement {
 		int logType = baseLog.getLogType();
 		if (logType == LogData.LOG_PUT) {
 			iAction.put(statemachine, baseLog.getKey(), baseLog.getValue());
+			updateApply(baseLog.getLogIndex());
 		} else if (logType == LogData.LOG_REMOVE) {
 			iAction.remove(statemachine, baseLog.getKey());
+			updateApply(baseLog.getLogIndex());
 		} else if (logType == LogData.LOG_UPDATE) {
 			iAction.update(statemachine, baseLog.getKey(), baseLog.getValue());
+			updateApply(baseLog.getLogIndex());
+		} else if (logType == LogData.LOG_GET) {
+			// 不需要提交
 		}
-		updateApply(baseLog.getLogIndex());
 	}
 
 	private void commit(BaseSnapshot baseSnapshot) {
@@ -134,7 +138,9 @@ public class StatemachineManager implements IStatement {
 	@Override
 	public synchronized void putLogData(List<BaseLog> baseLogList) {
 		for (BaseLog baseLog : baseLogList) {
-			commitMap.put(baseLog.getLogIndex(), baseLog);
+			if (baseLog.getLogType() != LogData.LOG_GET) {
+				commitMap.put(baseLog.getLogIndex(), baseLog);
+			}
 		}
 	}
 

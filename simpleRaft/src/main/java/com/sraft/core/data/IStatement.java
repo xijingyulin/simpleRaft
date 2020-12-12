@@ -23,13 +23,16 @@ public interface IStatement {
 	boolean commit(List<BaseLog> baseLogList);
 
 	boolean commitSnapshot(List<BaseSnapshot> baseSnapshotList);
-	
+
 	boolean isNeedCommit();
 
 	/**
 	 * 将待提交的日志放到队列中
+	 * 
+	 * GET日志不用提交
+	 * 
 	 */
 	void putLogData(List<BaseLog> baseLogList);
-	
+
 	String getValue(String key);
 }

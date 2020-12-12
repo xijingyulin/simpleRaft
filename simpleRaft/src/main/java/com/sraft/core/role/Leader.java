@@ -141,6 +141,7 @@ public class Leader extends AbstractRoles implements ILeader {
 		baseLog.setClientTransactionId(clientActionMsg.getTransactionId());
 		baseLog.setCreateTime(clientActionMsg.getSendTime());
 		baseLog.setKey(clientActionMsg.getKey());
+		baseLog.setValue(clientActionMsg.getValue());
 		baseLog.setLeaderId(selfId);
 		if (clientActionMsg.getActionType() != LogData.LOG_GET) {
 			baseLog.setLogIndex(getRoleController().getiLogSnap().getLastLogIndex() + 1);
@@ -151,7 +152,6 @@ public class Leader extends AbstractRoles implements ILeader {
 		baseLog.setLogType(clientActionMsg.getActionType());
 		baseLog.setSraftTransactionId(IdGenerateHelper.getNextSessionId());
 		baseLog.setUpdateTime(clientActionMsg.getSendTime());
-		baseLog.setValue(clientActionMsg.getValue());
 		return baseLog;
 	}
 

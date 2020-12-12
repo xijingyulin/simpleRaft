@@ -51,7 +51,7 @@ public class ClientConnManager {
 	public static final String CLIENT_ACTION_SENDER_WORKER = new String("CLIENT_ACTION_SENDER_WORKER");
 
 	public ClientConnManager(String address) throws Exception {
-		IdGenerateHelper.initializeNextSession(new Random().nextInt(100));
+		IdGenerateHelper.initializeNextSession(new Random().nextInt(100) + 1);
 		LOG.info("解析地址");
 		AddrManager.getInstance().explainAddr(address);
 		LOG.info("添加消息处理通道");

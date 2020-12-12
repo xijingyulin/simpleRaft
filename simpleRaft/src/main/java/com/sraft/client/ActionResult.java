@@ -50,4 +50,18 @@ public class ActionResult {
 		this.errCode = errCode;
 	}
 
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		builder.append("status:");
+		builder.append(status);
+		builder.append(",actionType:");
+		builder.append(actionType);
+		builder.append(",value:");
+		builder.append(value);
+		builder.append(",errCode:");
+		builder.append(errCode);
+		return builder.toString();
+	}
+
 }
