@@ -9,15 +9,16 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.core.joran.spi.JoranException;
 
-public class TestRole {
+public class TestRole1 {
 	public static void main(String args[]) {
 		initLog();
-		TestRole testRole = new TestRole();
+		TestRole1 testRole = new TestRole1();
 		testRole.test();
 	}
 
 	public void test() {
-		Config config = new Config();
+		String confPath = "conf/1";
+		Config config = new Config(confPath);
 		try {
 			config.readConf();
 			RoleController roleController = new RoleController(config);

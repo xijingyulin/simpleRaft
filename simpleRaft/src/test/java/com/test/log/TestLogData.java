@@ -1,7 +1,7 @@
 package com.test.log;
 
+import java.io.File;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,11 +13,12 @@ public class TestLogData {
 	static String logDataPath = "file/log_old.log";
 
 	public static void main(String args[]) throws IOException {
-		testAppendLogData();
+		//testAppendLogData();
 		//testAppendLogDataByOffset();
-		testGetAllLogData();
+		//testGetAllLogData();
 		//testGetLogDataByIndex();
 		//testGetLastLogData();
+		printAllLogData("data/data2");
 	}
 
 	public static void testGetLastLogData() {
@@ -28,7 +29,7 @@ public class TestLogData {
 
 	public static void testGetLogDataByIndex() throws IOException {
 		ILogData iLogData = new LogDataImpl();
-		LogData logData = iLogData.getLogDataByIndex(logDataPath, 1, 1);
+		LogData logData = iLogData.getLogDataByIndex(logDataPath, 1);
 		System.out.println(logData.toString());
 	}
 
@@ -71,4 +72,24 @@ public class TestLogData {
 		System.out.println("finish!");
 	}
 
+	public static void printAllLogData(String path) throws IOException {
+		//String path = "data";
+		File dir = new File(path);
+		File[] files = dir.listFiles();
+		for (File file : files) {
+			String filePath = file.getAbsolutePath();
+			String fileName = file.getName();
+			if (file.isDirectory()) {
+				printAllLogData(filePath);
+			} else if (file.isFile() && fileName.startsWith("log_")) {
+				ILogData iLogData = new LogDataImpl();
+				System.out.println("fileName:" + file.getName());
+				List<LogData> logDataList = iLogData.getAllLogData(filePath);
+				for (int i = 0; i < logDataList.size(); i++) {
+					System.out.println(i + ":" + logDataList.get(i).toString());
+				}
+			}
+		}
+
+	}
 }
