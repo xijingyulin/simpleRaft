@@ -1,4 +1,4 @@
-package com.sraft;
+package com.sraft.core;
 
 import java.io.File;
 import java.util.ArrayList;

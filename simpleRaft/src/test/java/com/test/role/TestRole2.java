@@ -2,7 +2,7 @@ package com.test.role;
 
 import org.slf4j.LoggerFactory;
 
-import com.sraft.Config;
+import com.sraft.core.Config;
 import com.sraft.core.role.RoleController;
 
 import ch.qos.logback.classic.LoggerContext;

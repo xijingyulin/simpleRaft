@@ -1,6 +1,6 @@
 package com.test;
 
-import com.sraft.Config;
+import com.sraft.core.Config;
 
 public class TestConfig {
 

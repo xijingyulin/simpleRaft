@@ -15,9 +15,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sraft.Config;
 import com.sraft.common.FileHelper;
 import com.sraft.common.StringHelper;
+import com.sraft.core.Config;
 import com.sraft.core.message.AppendLogEntryMsg;
 import com.sraft.core.message.AppendSnapshotMsg;
 import com.sraft.core.message.BaseLog;

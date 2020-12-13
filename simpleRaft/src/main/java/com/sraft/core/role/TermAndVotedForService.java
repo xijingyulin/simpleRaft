@@ -5,9 +5,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
-import com.sraft.Config;
 import com.sraft.common.FileHelper;
 import com.sraft.common.StringHelper;
+import com.sraft.core.Config;
 
 public class TermAndVotedForService {
 
