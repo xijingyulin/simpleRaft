@@ -6,6 +6,11 @@ import com.sraft.core.message.BaseLog;
 
 public class AppendTask {
 
+	/**
+	 * 任务ID
+	 */
+	private long taskId;
+
 	private BaseLog baseLog;
 	/**
 	 * 总追加数
@@ -58,5 +63,29 @@ public class AppendTask {
 		} else {
 			return false;
 		}
+	}
+
+	public long getTaskId() {
+		return taskId;
+	}
+
+	public void setTaskId(long taskId) {
+		this.taskId = taskId;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		builder.append("taskId:");
+		builder.append(taskId);
+		builder.append(",baseLog:");
+		builder.append(baseLog);
+		builder.append(",allAppendNum:");
+		builder.append(allAppendNum);
+		builder.append(",successNum:");
+		builder.append(successNum);
+		builder.append(",failNum:");
+		builder.append(failNum);
+		return builder.toString();
 	}
 }

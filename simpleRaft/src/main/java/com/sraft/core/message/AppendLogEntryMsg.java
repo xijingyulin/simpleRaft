@@ -10,6 +10,7 @@ import com.sraft.core.session.Session;
 
 @Message
 public class AppendLogEntryMsg extends ServerMsg {
+	private long taskId;
 	private long transactionId;
 	private int appendType;
 	private long prevLogIndex;
@@ -73,7 +74,9 @@ public class AppendLogEntryMsg extends ServerMsg {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("transactionId:");
+		builder.append("taskId:");
+		builder.append(taskId);
+		builder.append(",transactionId:");
 		builder.append(transactionId);
 		builder.append(",appendType:");
 		builder.append(appendType);
@@ -89,6 +92,8 @@ public class AppendLogEntryMsg extends ServerMsg {
 		builder.append(sessionMap);
 		builder.append(",nodeId:");
 		builder.append(nodeId);
+		builder.append(",leaderPort:");
+		builder.append(leaderPort);
 		builder.append(",term:");
 		builder.append(term);
 		builder.append(",msgType:");
@@ -124,6 +129,14 @@ public class AppendLogEntryMsg extends ServerMsg {
 
 	public void setSessionMap(Map<Long, Session> sessionMap) {
 		this.sessionMap = sessionMap;
+	}
+
+	public long getTaskId() {
+		return taskId;
+	}
+
+	public void setTaskId(long taskId) {
+		this.taskId = taskId;
 	}
 
 }

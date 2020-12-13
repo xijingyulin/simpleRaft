@@ -29,6 +29,7 @@ public class ClientSenderWorker implements IFlowWorker {
 			} else {
 				LOG.info("事务消息发送失败:{}", clientActionMsg.toString());
 				// 构造失败响应，并且packet.notify
+				clientConnManager.fillReplyAndNotice(packet);
 			}
 		}
 	}

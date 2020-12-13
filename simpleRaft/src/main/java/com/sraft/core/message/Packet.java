@@ -5,6 +5,7 @@ public class Packet {
 
 	private Msg sendMsg;
 	private Msg replyMsg;
+	private volatile boolean isFinish = false;
 
 	public Packet() {
 
@@ -34,6 +35,14 @@ public class Packet {
 		builder.append(",replyMsg:");
 		builder.append(replyMsg);
 		return builder.toString();
+	}
+
+	public boolean isFinish() {
+		return isFinish;
+	}
+
+	public void setFinish(boolean isFinish) {
+		this.isFinish = isFinish;
 	}
 
 }

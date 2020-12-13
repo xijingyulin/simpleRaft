@@ -46,7 +46,7 @@ public class Leader extends AbstractRoles implements ILeader {
 	/**
 	 * 追加日志的追加任务
 	 */
-	private BlockingQueue<AppendTask> pendingQueue = new LinkedBlockingQueue<AppendTask>();
+	private Map<Long, AppendTask> pendingTaskMap = new ConcurrentHashMap<Long, AppendTask>();
 
 	/**
 	 * 状态为正常的节点过半，才是真的过半；待完善
@@ -137,21 +137,26 @@ public class Leader extends AbstractRoles implements ILeader {
 
 	public BaseLog getBaseLog(ClientActionMsg clientActionMsg) {
 		BaseLog baseLog = new BaseLog();
-		baseLog.setClientSessionId(clientActionMsg.getSessionId());
-		baseLog.setClientTransactionId(clientActionMsg.getTransactionId());
-		baseLog.setCreateTime(clientActionMsg.getSendTime());
-		baseLog.setKey(clientActionMsg.getKey());
-		baseLog.setValue(clientActionMsg.getValue());
-		baseLog.setLeaderId(selfId);
-		if (clientActionMsg.getActionType() != LogData.LOG_GET) {
-			baseLog.setLogIndex(getRoleController().getiLogSnap().getLastLogIndex() + 1);
-		} else {
-			baseLog.setLogIndex(-1);
+		try {
+			baseLog.setClientSessionId(clientActionMsg.getSessionId());
+			baseLog.setClientTransactionId(clientActionMsg.getTransactionId());
+			baseLog.setCreateTime(clientActionMsg.getSendTime());
+			baseLog.setKey(clientActionMsg.getKey());
+			baseLog.setValue(clientActionMsg.getValue());
+			baseLog.setLeaderId(selfId);
+			if (clientActionMsg.getActionType() != LogData.LOG_GET) {
+				baseLog.setLogIndex(getRoleController().getiLogSnap().getLastLogIndex() + 1);
+			} else {
+				baseLog.setLogIndex(-1);
+			}
+			baseLog.setLogTerm(getCurrentTerm());
+			baseLog.setLogType(clientActionMsg.getActionType());
+			baseLog.setSraftTransactionId(IdGenerateHelper.getNextSessionId());
+			baseLog.setUpdateTime(clientActionMsg.getSendTime());
+		} catch (Throwable e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
 		}
-		baseLog.setLogTerm(getCurrentTerm());
-		baseLog.setLogType(clientActionMsg.getActionType());
-		baseLog.setSraftTransactionId(IdGenerateHelper.getNextSessionId());
-		baseLog.setUpdateTime(clientActionMsg.getSendTime());
 		return baseLog;
 	}
 
@@ -161,32 +166,40 @@ public class Leader extends AbstractRoles implements ILeader {
 	 * @param appendTask
 	 */
 	public void submitAppendTask(AppendTask appendTask) {
-		pendingQueue.add(appendTask);
-		appendTask.setAllAppendNum(connAddressList.size() + 1);
-		BaseLog baseLog = appendTask.getBaseLog();
-		long prevLogIndex = roleController.getiLogSnap().getLastLogIndex();
-		long prevLogTerm = roleController.getiLogSnap().getLastLogTerm();
-		for (int i = -1; i < connAddressList.size(); i++) {
-			AppendLogEntryMsg emptyMsg = getEmptyLogMsg();
-			emptyMsg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_ORDINARY);
-			emptyMsg.setPrevLogIndex(prevLogIndex);
-			emptyMsg.setPrevLogTerm(prevLogTerm);
-			List<BaseLog> baseLogList = new ArrayList<BaseLog>();
-			baseLogList.add(baseLog);
-			emptyMsg.setBaseLogList(baseLogList);
-			if (i == -1) {
-				// 先提交领导者自己的日志
-				appendLogEntryLocally(emptyMsg);
-			} else {
-				int nodeId = connAddressList.get(i).getNodeId();
-				String appendWorker = getAppendWorkerCard(nodeId);
-				try {
-					FlowHeader.putProducts(appendWorker, emptyMsg);
-				} catch (NoFlowLineException e) {
-					e.printStackTrace();
-					LOG.error(e.getMessage(), e);
+		try {
+			long taskId = IdGenerateHelper.getNextSessionId();
+			appendTask.setTaskId(taskId);
+			appendTask.setAllAppendNum(connAddressList.size() + 1);
+			pendingTaskMap.put(taskId, appendTask);
+			BaseLog baseLog = appendTask.getBaseLog();
+			long prevLogIndex = roleController.getiLogSnap().getLastLogIndex();
+			long prevLogTerm = roleController.getiLogSnap().getLastLogTerm();
+			for (int i = -1; i < connAddressList.size(); i++) {
+				AppendLogEntryMsg emptyMsg = getEmptyLogMsg();
+				emptyMsg.setTaskId(taskId);
+				emptyMsg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_ORDINARY);
+				emptyMsg.setPrevLogIndex(prevLogIndex);
+				emptyMsg.setPrevLogTerm(prevLogTerm);
+				List<BaseLog> baseLogList = new ArrayList<BaseLog>();
+				baseLogList.add(baseLog);
+				emptyMsg.setBaseLogList(baseLogList);
+				if (i == -1) {
+					// 先提交领导者自己的日志
+					appendLogEntryLocally(emptyMsg);
+				} else {
+					int nodeId = connAddressList.get(i).getNodeId();
+					String appendWorker = getAppendWorkerCard(nodeId);
+					try {
+						FlowHeader.putProducts(appendWorker, emptyMsg);
+					} catch (NoFlowLineException e) {
+						e.printStackTrace();
+						LOG.error(e.getMessage(), e);
+					}
 				}
 			}
+		} catch (Throwable e) {
+			e.printStackTrace();
+			LOG.error(e.getMessage(), e);
 		}
 	}
 
@@ -194,12 +207,13 @@ public class Leader extends AbstractRoles implements ILeader {
 		boolean isSuccess = false;
 		EnumAppendLogResult result = roleController.appendLogEntryLocally(appendLogEntryMsg);
 		if (result == EnumAppendLogResult.LOG_APPEND_SUCCESS) {
+			roleController.updateSession(appendLogEntryMsg.getBaseLogList());
 			isSuccess = true;
 		} else {
 			isSuccess = false;
 			LOG.error("【严重异常，写日志到本地出错！！！】");
 		}
-		updateAppendTask(isSuccess);
+		updateAppendTask(appendLogEntryMsg.getTaskId(), isSuccess);
 	}
 
 	public void initNodeStatus() {
@@ -381,24 +395,22 @@ public class Leader extends AbstractRoles implements ILeader {
 		}
 	}
 
-	public void updateAppendTask(boolean isSuccess) {
-		synchronized (pendingQueue) {
-			AppendTask appendTask = pendingQueue.peek();
-			if (appendTask != null) {
-				synchronized (appendTask) {
-					if (appendTask != null) {
-						if (isSuccess) {
-							appendTask.increSuccessNum();
-							if (appendTask.isOverHalfSuccess()) {
-								appendTask.notify();
-								pendingQueue.clear();
-							}
-						} else {
-							appendTask.increFailNum();
-							if (appendTask.isOverHalfFail()) {
-								appendTask.notify();
-								pendingQueue.clear();
-							}
+	public void updateAppendTask(long taskId, boolean isSuccess) {
+		AppendTask appendTask = pendingTaskMap.get(taskId);
+		if (appendTask != null) {
+			synchronized (appendTask) {
+				if (appendTask != null) {
+					if (isSuccess) {
+						appendTask.increSuccessNum();
+						if (appendTask.isOverHalfSuccess()) {
+							appendTask.notify();
+							pendingTaskMap.remove(taskId);
+						}
+					} else {
+						appendTask.increFailNum();
+						if (appendTask.isOverHalfFail()) {
+							appendTask.notify();
+							pendingTaskMap.remove(taskId);
 						}
 					}
 				}
@@ -456,8 +468,27 @@ public class Leader extends AbstractRoles implements ILeader {
 		return followStatusMap;
 	}
 
-	public BlockingQueue<AppendTask> getPendingQueue() {
-		return pendingQueue;
+	/**
+	 * 是否是重复的命令
+	 * 
+	 * @param appendLogEntryMsg
+	 */
+	public boolean isRepeatTransaction(ClientActionMsg clientActionMsg) {
+		boolean isRepeat = false;
+		long sessionId = clientActionMsg.getSessionId();
+		long transactionId = clientActionMsg.getTransactionId();
+		Session session = roleController.getSessionMap().get(sessionId);
+		if (session == null) {
+			isRepeat = false;
+		} else {
+			long temTransactionId = session.getLastClientTransactionId();
+			if (transactionId <= temTransactionId) {
+				isRepeat = true;
+			} else {
+				isRepeat = false;
+			}
+		}
+		return isRepeat;
 	}
 
 }

@@ -21,7 +21,6 @@ import com.sraft.core.net.ConnManager;
 import com.sraft.core.net.ServerAddress;
 import com.sraft.core.role.FollowStatus;
 import com.sraft.core.role.Leader;
-import com.sraft.enums.EnumAppendLogResult;
 import com.sraft.enums.EnumNodeStatus;
 
 public class SendAppendLogWorker implements IFlowWorker {
@@ -30,7 +29,7 @@ public class SendAppendLogWorker implements IFlowWorker {
 	private ServerAddress serverAddress;
 	private FollowStatus followStatus;
 
-	private static final int DATA_BATCH_NUM = 2000;
+	private static final int DATA_BATCH_NUM = 100;
 
 	public SendAppendLogWorker(ServerAddress serverAddress, Leader leader) {
 		this.leader = leader;
@@ -50,12 +49,13 @@ public class SendAppendLogWorker implements IFlowWorker {
 	}
 
 	public boolean appendLogEntry(AppendLogEntryMsg appendLogEntryMsg) {
+		long taskId = appendLogEntryMsg.getTaskId();
 		int nodeId = followStatus.getNodeId();
 		boolean isAppend = false;
 		// 先检查节点的状态，只有正常状态才能追加日志
 		if (followStatus.getStatus() != EnumNodeStatus.NODE_NORMAL) {
 			LOG.error("节点:{},状态为：{},不能追加日志", nodeId, followStatus.getStatus());
-			leader.updateAppendTask(false);
+			leader.updateAppendTask(taskId, false);
 			return isAppend;
 		}
 		Packet packet = new Packet();
@@ -80,16 +80,16 @@ public class SendAppendLogWorker implements IFlowWorker {
 				if (packet.getReplyMsg() == null) {
 					LOG.info("节点:{},没有响应", nodeId, packet.toString());
 					followStatus.setStatus(EnumNodeStatus.NODE_LOG_UNSYN);
-					leader.updateAppendTask(false);
+					leader.updateAppendTask(taskId, false);
 				} else {
 					ReplyAppendLogEntryMsg replyAppendLogEntryMsg = (ReplyAppendLogEntryMsg) packet.getReplyMsg();
 					int result = replyAppendLogEntryMsg.getResult();
 					if (result == Msg.RETURN_STATUS_OK) {
-						LOG.info("节点:{},追加日志处理完成:{}", nodeId, packet.toString());
 						// 更新跟随者已复制ID
 						followStatus.setMatchIndex(appendLogEntryMsg.getBaseLogList()
 								.get(appendLogEntryMsg.getBaseLogList().size() - 1).getLogIndex());
-						leader.updateAppendTask(true);
+						leader.updateAppendTask(taskId, true);
+						LOG.info("节点:{},追加日志处理完成:{}", nodeId, packet.toString());
 						isAppend = true;
 					} else {
 						int errCode = replyAppendLogEntryMsg.getErrCode();
@@ -114,17 +114,17 @@ public class SendAppendLogWorker implements IFlowWorker {
 							break;
 						}
 						followStatus.setStatus(EnumNodeStatus.NODE_LOG_UNSYN);
-						leader.updateAppendTask(false);
+						leader.updateAppendTask(taskId, false);
 					}
 				}
 			} else {
 				LOG.error("节点:{},发送追加日志消息失败", nodeId);
 				followStatus.setStatus(EnumNodeStatus.NODE_DEAD);
-				leader.updateAppendTask(false);
+				leader.updateAppendTask(taskId, false);
 			}
 		} catch (InterruptedException e) {
 			followStatus.setStatus(EnumNodeStatus.NODE_LOG_UNSYN);
-			leader.updateAppendTask(false);
+			leader.updateAppendTask(taskId, false);
 			e.printStackTrace();
 			LOG.error(e.getMessage(), e);
 		}
@@ -156,7 +156,7 @@ public class SendAppendLogWorker implements IFlowWorker {
 					packet.wait(1000);
 				}
 				followStatus.getPendingQueue().clear();
-				LOG.info("节点:{},同步日志处理完成:{}", nodeId, packet.toString());
+				//LOG.info("节点:{},同步日志处理完成:{}", nodeId, packet.toString());
 				if (packet.getReplyMsg() == null) {
 					LOG.info("节点:{},没有响应", nodeId, packet.toString());
 					followStatus.setStatus(EnumNodeStatus.NODE_LOG_UNSYN);
@@ -434,8 +434,8 @@ public class SendAppendLogWorker implements IFlowWorker {
 		// 首先重置匹配索引位置
 		followStatus.setMatchIndex(0);
 		boolean isSuccess = true;
-		long prevLogIndex = leader.getRoleController().getiLogSnap().getLastSnapIndex();
-		long prevLogTerm = leader.getRoleController().getiLogSnap().getLastSnapTerm();
+		long prevLogIndex = -1;
+		long prevLogTerm = -1;
 		long beginLogIndex = 0;
 		long matchIndex = 0;
 		while (true) {

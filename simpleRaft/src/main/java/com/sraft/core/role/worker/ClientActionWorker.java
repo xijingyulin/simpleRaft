@@ -59,8 +59,7 @@ public class ClientActionWorker extends Workder {
 	public void dealClientActionMsg(ChannelHandlerContext ctx, ClientActionMsg clientActionMsg) {
 		long sessionId = clientActionMsg.getSessionId();
 		long receviceTime = clientActionMsg.getReceviceTime();
-		long clientTransactionId = clientActionMsg.getTransactionId();
-		boolean isUpdate = roleController.updateSession(sessionId, receviceTime, clientTransactionId);
+		boolean isUpdate = roleController.updateSession(sessionId, receviceTime);
 		ReplyClientActionMsg replyClientActionMsg = new ReplyClientActionMsg();
 		if (role == null) {
 			replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
@@ -84,27 +83,41 @@ public class ClientActionWorker extends Workder {
 					replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
 					replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR);
 				} else {
-					// 注意读操作，不需累计索引
-					BaseLog baseLog = leader.getBaseLog(clientActionMsg);
-					AppendTask appendTask = new AppendTask(baseLog);
-					synchronized (appendTask) {
-						leader.submitAppendTask(appendTask);
-						try {
-							appendTask.wait();
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-					}
-					if (appendTask.isOverHalfSuccess()) {
-						// 提交状态机
-						leader.getRoleController().commit();
-						if (baseLog.getLogType() == LogData.LOG_GET) {
-							replyClientActionMsg.setValue(leader.getRoleController().getValue(baseLog.getKey()));
+					LOG.info("接收到事务操作消息:{}", clientActionMsg.toString());
+
+					if (leader.isRepeatTransaction(clientActionMsg)) {
+						LOG.info("已执行过这个操作,直接返回结果");
+						if (clientActionMsg.getActionType() == LogData.LOG_GET) {
+							replyClientActionMsg
+									.setValue(leader.getRoleController().getValue(clientActionMsg.getKey()));
 						}
 						replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
 					} else {
-						replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
-						replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOG_APPEND_FALSE);
+						// 注意读操作，不需累计索引
+						BaseLog baseLog = leader.getBaseLog(clientActionMsg);
+						AppendTask appendTask = new AppendTask(baseLog);
+						synchronized (appendTask) {
+							LOG.info("提交任务:{}", appendTask.toString());
+							leader.submitAppendTask(appendTask);
+							try {
+								appendTask.wait();
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+						}
+						if (appendTask.isOverHalfSuccess()) {
+							LOG.info("提交任务成功:{}", appendTask.toString());
+							// 提交状态机
+							leader.getRoleController().commit();
+							if (baseLog.getLogType() == LogData.LOG_GET) {
+								replyClientActionMsg.setValue(leader.getRoleController().getValue(baseLog.getKey()));
+							}
+							replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
+						} else {
+							LOG.info("提交任务失败:{}", appendTask.toString());
+							replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+							replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOG_APPEND_FALSE);
+						}
 					}
 				}
 			}

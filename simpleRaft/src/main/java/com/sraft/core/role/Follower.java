@@ -5,7 +5,10 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sraft.core.message.AppendLogEntryMsg;
+import com.sraft.core.message.BaseLog;
 import com.sraft.core.schedule.ScheduleElectionTimeout;
+import com.sraft.core.session.Session;
 import com.sraft.enums.EnumRole;
 
 public class Follower extends AbstractRoles {

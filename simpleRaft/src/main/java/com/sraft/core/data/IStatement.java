@@ -35,4 +35,6 @@ public interface IStatement {
 	void putLogData(List<BaseLog> baseLogList);
 
 	String getValue(String key);
+	
+	Statemachine getStatemachine();
 }

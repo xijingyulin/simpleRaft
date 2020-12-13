@@ -99,7 +99,6 @@ public class AppendLogWorkder extends Workder {
 			replyAppendLogEntryMsg.setResult(Msg.RETURN_STATUS_FALSE);
 			replyAppendLogEntryMsg.setErrCode(Msg.ERR_CODE_LOG_LARGE_TERM);
 		}
-
 		replyAppendLogEntryMsg.setAppendType(appendLogEntryMsg.getAppendType());
 		replyAppendLogEntryMsg.setMsgId(IdGenerateHelper.getMsgId());
 		replyAppendLogEntryMsg.setMsgType(Msg.TYPE_REPLY_APPEND_LOG);
@@ -108,7 +107,6 @@ public class AppendLogWorkder extends Workder {
 		replyAppendLogEntryMsg.setTransactionId(appendLogEntryMsg.getTransactionId());
 		replyAppendLogEntryMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		ctx.writeAndFlush(replyAppendLogEntryMsg);
-
 	}
 
 	public void dealReplyAppendLogEntryMsg(ReplyAppendLogEntryMsg replyAppendLogEntryMsg) {

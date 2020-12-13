@@ -70,6 +70,12 @@ public class SimpleRaftClient implements IClientTransaction {
 		}
 
 		Packet packet = getPacket(LogData.LOG_REMOVE, key, "");
+		///////////
+		//		for (int i = 0; i < 10000; i++) {
+		//			sendMsg(packet, LogData.LOG_REMOVE);
+		//		}	
+		//		return sendMsg(packet, LogData.LOG_REMOVE);
+		/////////////
 		return sendMsg(packet, LogData.LOG_REMOVE);
 	}
 
@@ -115,17 +121,22 @@ public class SimpleRaftClient implements IClientTransaction {
 		ActionResult actionResult = new ActionResult();
 		actionResult.setActionType(actionType);
 		while (true) {
-			if (!clientConnManager.isUseFull()) {
-				LOG.error("集群不可用，发送失败");
-				throw new UnavailableException();
-			}
+			//			if (!clientConnManager.isUseFull()) {
+			//				LOG.error("集群不可用，发送失败");
+			//				throw new UnavailableException();
+			//			}
+			clientConnManager.isUseFullSyn();
 			clientConnManager.sendActionMsg(packet);
 			synchronized (packet) {
 				try {
-					packet.wait();
+					packet.wait(1000);
+					packet.setFinish(true);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
+			}
+			if (packet.getReplyMsg() == null) {
+				clientConnManager.fillReply(packet);
 			}
 			ReplyClientActionMsg replyClientActionMsg = (ReplyClientActionMsg) packet.getReplyMsg();
 			int result = replyClientActionMsg.getResult();
@@ -151,4 +162,8 @@ public class SimpleRaftClient implements IClientTransaction {
 		}
 		return actionResult;
 	}
+
+	//	public void close() {
+	//		clientConnManager.close();
+	//	}
 }

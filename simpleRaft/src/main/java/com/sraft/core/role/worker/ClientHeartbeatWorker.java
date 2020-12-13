@@ -63,7 +63,7 @@ public class ClientHeartbeatWorker extends Workder {
 		replyClientHeartbeatMsg.setMsgType(Msg.TYPE_REPLY_CLIENT_HEARTBEAT);
 		replyClientHeartbeatMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		replyClientHeartbeatMsg.setSessionId(sessionId);
-		boolean isUpdate = roleController.updateSession(sessionId, receviceTime, -1);
+		boolean isUpdate = roleController.updateSession(sessionId, receviceTime);
 		if (role == null) {
 			replyClientHeartbeatMsg.setResult(Msg.RETURN_STATUS_FALSE);
 			replyClientHeartbeatMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);

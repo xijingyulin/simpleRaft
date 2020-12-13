@@ -13,11 +13,13 @@ import com.sraft.common.DateHelper;
 import com.sraft.common.IdGenerateHelper;
 import com.sraft.common.flow.FlowHeader;
 import com.sraft.common.flow.NoFlowLineException;
+import com.sraft.core.message.ClientActionMsg;
 import com.sraft.core.message.ClientHeartbeatMsg;
 import com.sraft.core.message.ClientMsg;
 import com.sraft.core.message.LoginMsg;
 import com.sraft.core.message.Msg;
 import com.sraft.core.message.Packet;
+import com.sraft.core.message.ReplyClientActionMsg;
 import com.sraft.core.net.ConnManager;
 import com.sraft.core.net.ServerAddress;
 import com.sraft.core.role.RoleController;
@@ -40,7 +42,7 @@ public class ClientConnManager {
 	 * 服务是否可用；登录成功并且过半节点存活，才是可用；否则都是不可用
 	 */
 	private volatile EnumServiceStatus serviceStatus = EnumServiceStatus.UN_USEFULL;
-	public static final int CLIENT_HEARTBEAT_INTERVAL = 300;
+	private final int CLIENT_HEARTBEAT_INTERVAL = 300;
 	private volatile ClientMsg lastReceiveMsg = null;
 
 	/**
@@ -106,7 +108,50 @@ public class ClientConnManager {
 	 */
 	public void reConnected() {
 		//清空缓存队列
+		synchronized (pendingQueue) {
+			while (!pendingQueue.isEmpty()) {
+				try {
+					Packet packet = pendingQueue.take();
+					fillReplyAndNotice(packet);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 		sendLoginMsg();
+	}
+
+	public void fillReplyAndNotice(Packet packet) {
+		synchronized (packet) {
+			if (!packet.isFinish()) {
+				ClientActionMsg clientActionMsg = (ClientActionMsg) packet.getSendMsg();
+				ReplyClientActionMsg reply = new ReplyClientActionMsg();
+				reply.setActionType(clientActionMsg.getActionType());
+				reply.setErrCode(Msg.ERR_CODE_LOG_APPEND_FALSE);
+				reply.setMsgId(clientActionMsg.getMsgId());
+				reply.setMsgType(Msg.TYPE_REPLY_CLIENT_ACTION);
+				reply.setReceviceTime(-1);
+				reply.setResult(Msg.RETURN_STATUS_FALSE);
+				reply.setSessionId(clientActionMsg.getSessionId());
+				reply.setSendTime(-1);
+				packet.setReplyMsg(reply);
+				packet.notify();
+			}
+		}
+	}
+
+	public void fillReply(Packet packet) {
+		ClientActionMsg clientActionMsg = (ClientActionMsg) packet.getSendMsg();
+		ReplyClientActionMsg reply = new ReplyClientActionMsg();
+		reply.setActionType(clientActionMsg.getActionType());
+		reply.setErrCode(Msg.ERR_CODE_LOG_APPEND_FALSE);
+		reply.setMsgId(clientActionMsg.getMsgId());
+		reply.setMsgType(Msg.TYPE_REPLY_CLIENT_ACTION);
+		reply.setReceviceTime(-1);
+		reply.setResult(Msg.RETURN_STATUS_FALSE);
+		reply.setSessionId(clientActionMsg.getSessionId());
+		reply.setSendTime(-1);
+		packet.setReplyMsg(reply);
 	}
 
 	private LoginMsg getLoginMsg() {
@@ -135,10 +180,11 @@ public class ClientConnManager {
 		synchronized (EnumServiceStatus.class) {
 			if (serviceStatus != newStatus) {
 				serviceStatus = newStatus;
+				LOG.info("服务状态变更:{}", serviceStatus);
 			}
 			if (isService()) {
 				synchronized (LOGIN_SUCCESS) {
-					LOGIN_SUCCESS.notify();
+					LOGIN_SUCCESS.notifyAll();
 				}
 			}
 		}
@@ -248,4 +294,15 @@ public class ClientConnManager {
 		this.pendingQueue = pendingQueue;
 	}
 
+	//	public void close() {
+	//		LOG.info("停止心跳发送");
+	//		stopClientHeartbeat();
+	//		LOG.info("移除消息通道");
+	//		FlowHeader.unEmploy(CLIENT_ACTION_SENDER_WORKER);
+	//		FlowHeader.unEmploy(RoleController.LOGIN_WORKER);
+	//		FlowHeader.unEmploy(RoleController.CLIENT_HEARTBEAT_WORKER);
+	//		FlowHeader.unEmploy(RoleController.CLIENT_ACTION_WORKDER);
+	//		LOG.info("关闭网络");
+	//		ConnManager.getInstance().closeAll();
+	//	}
 }

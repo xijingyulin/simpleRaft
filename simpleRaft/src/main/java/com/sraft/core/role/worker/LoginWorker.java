@@ -66,7 +66,7 @@ public class LoginWorker extends Workder {
 		replyLoginMsg.setMsgId(IdGenerateHelper.getMsgId());
 		replyLoginMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		replyLoginMsg.setSessionId(sessionId);
-		boolean isUpdate = roleController.updateSession(sessionId, receviceTime, -1);
+		boolean isUpdate = roleController.updateSession(sessionId, receviceTime);
 		if (role == null) {
 			replyLoginMsg.setResult(Msg.RETURN_STATUS_FALSE);
 			replyLoginMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);

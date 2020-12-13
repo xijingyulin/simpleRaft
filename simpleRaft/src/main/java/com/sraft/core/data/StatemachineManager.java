@@ -183,4 +183,8 @@ public class StatemachineManager implements IStatement {
 		return (!commitMap.isEmpty());
 	}
 
+	@Override
+	public Statemachine getStatemachine() {
+		return statemachine;
+	}
 }

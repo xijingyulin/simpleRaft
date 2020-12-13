@@ -16,15 +16,14 @@ import org.slf4j.LoggerFactory;
 import com.sraft.Config;
 import com.sraft.common.flow.FlowHeader;
 import com.sraft.core.data.IStatement;
+import com.sraft.core.data.Statemachine;
 import com.sraft.core.data.StatemachineManager;
 import com.sraft.core.log.ILogSnap;
-import com.sraft.core.log.LogData;
 import com.sraft.core.log.LogSnapManager;
 import com.sraft.core.message.AppendLogEntryMsg;
 import com.sraft.core.message.AppendSnapshotMsg;
 import com.sraft.core.message.BaseLog;
 import com.sraft.core.message.BaseSnapshot;
-import com.sraft.core.message.HeartbeatMsg;
 import com.sraft.core.message.ServerMsg;
 import com.sraft.core.net.ConnManager;
 import com.sraft.core.net.ServerAddress;
@@ -261,10 +260,16 @@ public class RoleController {
 					} else {
 						LOG.info("【当前角色:{},当前任期:{},领导者是:{},节点状态:{}】", "领导者", currentTerm, leaderId, sb.toString());
 					}
+					//Map<String, String> map = iStatement.getStatemachine().getStatemachine();
+					//					StringBuffer state = new StringBuffer();
+					//					for (Entry<String, String> entry : map.entrySet()) {
+					//						state.append("\n").append("【key:").append(entry.getKey()).append(",value:")
+					//								.append(entry.getValue()).append("】");
+					//					}
+					//					LOG.info("状态机:{}", state.toString());
 				} else if (role instanceof Candidate) {
 					//Candidate candidate = (Candidate) role;
 				}
-
 				try {
 					sleep(10 * 1000);
 				} catch (InterruptedException e) {
@@ -319,8 +324,7 @@ public class RoleController {
 		this.sessionMap = sessionMap;
 	}
 
-	public synchronized boolean updateSession(long sessionId, long newLastReceiveTime,
-			long newLastClientTransactionId) {
+	public synchronized boolean updateSession(long sessionId, long newLastReceiveTime) {
 		boolean isUpdate = false;
 		Session session = sessionMap.get(sessionId);
 		if (session == null) {
@@ -328,9 +332,6 @@ public class RoleController {
 		} else {
 			isUpdate = true;
 			session.setLastReceiveTime(newLastReceiveTime);
-			if (newLastClientTransactionId != -1) {
-				session.setLastClientTransactionId(newLastClientTransactionId);
-			}
 		}
 		return isUpdate;
 	}
@@ -388,6 +389,11 @@ public class RoleController {
 		return iLogSnap;
 	}
 
+	/**
+	 * 普通追加日志使用，追加成功，记录最新事务ID
+	 * 
+	 * @param baseLogList
+	 */
 	public void updateSession(List<BaseLog> baseLogList) {
 		sessionLock.lock();
 		for (BaseLog baseLog : baseLogList) {
