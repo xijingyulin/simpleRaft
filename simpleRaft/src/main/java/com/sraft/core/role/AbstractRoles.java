@@ -40,6 +40,9 @@ public abstract class AbstractRoles extends Thread implements IRole {
 
 	public AbstractRoles(EnumRole playRole, RoleController roleController) throws IOException {
 		this.playRole = playRole;
+		if (playRole == EnumRole.LEADER) {
+			roleController.commit();
+		}
 		this.selfId = roleController.getConfig().getSelfId();
 		this.roleController = roleController;
 		// 恢复任期
