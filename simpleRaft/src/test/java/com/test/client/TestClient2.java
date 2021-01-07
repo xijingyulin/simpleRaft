@@ -58,13 +58,20 @@ public class TestClient2 {
 			e.printStackTrace();
 		}
 		long begin = System.currentTimeMillis();
-		for (int i = 1; i < 1000; i++) {
+		for (int i = 0; i < 20000; i++) {
+
 			try {
-				System.out.println(client.put("key_" + i, "value_" + i));
-			} catch (UnavailableException | KeyNullException | ValueNullException e) {
+				client.get("key_999");
+			} catch (UnavailableException | KeyNullException e) {
+				// TODO Auto-generated catch block
 				e.printStackTrace();
-				LOG.error(e.getMessage(), e);
 			}
+			//			try {
+			//				System.out.println(client.put("key_" + i, "value_" + i));
+			//			} catch (UnavailableException | KeyNullException | ValueNullException e) {
+			//				e.printStackTrace();
+			//				LOG.error(e.getMessage(), e);
+			//			}
 		}
 		long end = System.currentTimeMillis();
 		long time = (end - begin) / 1000;
