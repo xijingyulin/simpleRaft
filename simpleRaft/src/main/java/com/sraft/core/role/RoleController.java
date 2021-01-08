@@ -43,7 +43,7 @@ public class RoleController {
 	private static Logger LOG = LoggerFactory.getLogger(RoleController.class);
 
 	private EnumRole playRole = EnumRole.FOLLOWER;
-	private AbstractRoles role = null;
+	private volatile AbstractRoles role = null;
 	private Config config = null;
 
 	private String LOCK_CHANGE_ROLE = new String("LOCK_CHANGE_ROLE");

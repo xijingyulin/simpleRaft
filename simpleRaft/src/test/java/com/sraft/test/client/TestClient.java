@@ -3,7 +3,9 @@ package com.sraft.test.client;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sraft.client.ActionResult;
 import com.sraft.client.SimpleRaftClient;
+import com.sraft.core.message.Msg;
 
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
@@ -23,7 +25,13 @@ public class TestClient {
 		SimpleRaftClient client;
 		try {
 			client = new SimpleRaftClient(address);
-			System.out.println(client.put("test", "testSimpleRaft").getStatus());
+			for (int i = 0; i < 10; i++) {
+				String key = "test:" + i;
+				String value = "value:" + i;
+				LOG.info("新增数据,key={},value={}", key, value);
+				ActionResult result = client.put(key, value);
+				LOG.info("执行结果:{}", result.getStatus() == Msg.RETURN_STATUS_OK);
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
