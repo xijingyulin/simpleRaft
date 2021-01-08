@@ -3,3 +3,4 @@
 (2)测试代码在包:com.sraft.test
 (3)客户端测试包:com.sraft.test.client
 (4)集群测试包:com.sraft.test.role,可启动多个角色运行测试
+(5)配置文件在默认conf包,启动服务器时可指定位置
