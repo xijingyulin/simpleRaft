@@ -2,9 +2,37 @@ package com.sraft.client;
 
 public class ActionResult {
 
+	/**
+	 * 具体看:
+	 * 
+	 * Msg.RETURN_STATUS_OK
+	 * 
+	 * Msg.RETURN_STATUS_FALSE
+	 */
 	private int status;
+	/**
+	 * 
+	 * 具体看:
+	 * 
+	 * LogData.LOG_PUT
+	 * 
+	 * LogData.LOG_UPDATE
+	 * 
+	 * LogData.LOG_REMOVE
+	 * 
+	 * LogData.LOG_GET
+	 * 
+	 */
 	private int actionType;
+	/**
+	 * get方法才会有返回值
+	 */
 	private String value;
+	/**
+	 * 具体看:
+	 * 
+	 * Msg.ERR_CODE_LOG_*
+	 */
 	private int errCode;
 
 	public ActionResult() {
