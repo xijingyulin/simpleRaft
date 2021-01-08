@@ -1,4 +1,4 @@
-package com.test.log;
+package com.sraft.test.log;
 
 import java.io.File;
 import java.io.IOException;

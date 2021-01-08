@@ -1,14 +1,13 @@
-package com.test.flow;
+package com.sraft.test.flow;
 
-public class Food {
+public class Phone {
 
 	private String name;
-	private String type;
+	private String price;
 
-	public Food(String name, String type) {
-		super();
+	public Phone(String name, String price) {
 		this.name = name;
-		this.type = type;
+		this.price = price;
 	}
 
 	public String getName() {
@@ -19,12 +18,12 @@ public class Food {
 		this.name = name;
 	}
 
-	public String getType() {
-		return type;
+	public String getPrice() {
+		return price;
 	}
 
-	public void setType(String type) {
-		this.type = type;
+	public void setPrice(String price) {
+		this.price = price;
 	}
 
 	@Override
@@ -32,8 +31,8 @@ public class Food {
 		StringBuilder builder = new StringBuilder();
 		builder.append("name:");
 		builder.append(name);
-		builder.append(",type:");
-		builder.append(type);
+		builder.append(",price:");
+		builder.append(price);
 		return builder.toString();
 	}
 

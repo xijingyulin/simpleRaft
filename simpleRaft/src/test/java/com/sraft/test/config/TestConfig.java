@@ -1,4 +1,4 @@
-package com.test;
+package com.sraft.test.config;
 
 import com.sraft.core.Config;
 
