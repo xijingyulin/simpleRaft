@@ -32,8 +32,6 @@ public class ClientActionWorker extends Workder {
 	private static Logger LOG = LoggerFactory.getLogger(ClientActionWorker.class);
 
 	private ClientConnManager clientConnManager;
-	private RoleController roleController;
-
 	private static final int BATCH_ACTION_SIZE = 1000;
 
 	public ClientActionWorker(RoleController roleController) {

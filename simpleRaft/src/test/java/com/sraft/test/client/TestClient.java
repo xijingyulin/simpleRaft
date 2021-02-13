@@ -25,7 +25,7 @@ public class TestClient {
 		SimpleRaftClient client;
 		try {
 			client = new SimpleRaftClient(address);
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 3; i++) {
 				String key = "test:" + i;
 				String value = "value:" + i;
 				LOG.info("新增数据,key={},value={}", key, value);
