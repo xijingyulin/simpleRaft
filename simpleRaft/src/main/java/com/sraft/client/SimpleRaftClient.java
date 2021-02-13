@@ -88,7 +88,7 @@ public class SimpleRaftClient implements IClientTransaction {
 		return sendMsg(packet, LogData.LOG_GET);
 	}
 
-	private Packet getPacket(int actionType, String key, String value, DataCallBack callBack) {
+	private Packet getPacket(int actionType, String key, String value, IDataCallBack callBack) {
 		Packet packet = new Packet();
 		ClientActionMsg clientActionMsg = new ClientActionMsg();
 		clientActionMsg.setActionType(actionType);
@@ -165,7 +165,7 @@ public class SimpleRaftClient implements IClientTransaction {
 	}
 
 	@Override
-	public void put(String key, String value, DataCallBack callBack)
+	public void put(String key, String value, IDataCallBack callBack)
 			throws UnavailableException, KeyNullException, ValueNullException {
 		if (!StringHelper.checkIsNotNull(key)) {
 			throw new KeyNullException();
@@ -178,7 +178,7 @@ public class SimpleRaftClient implements IClientTransaction {
 	}
 
 	@Override
-	public void update(String key, String value, DataCallBack callBack)
+	public void update(String key, String value, IDataCallBack callBack)
 			throws UnavailableException, KeyNullException, ValueNullException {
 		if (!StringHelper.checkIsNotNull(key)) {
 			throw new KeyNullException();
@@ -191,7 +191,7 @@ public class SimpleRaftClient implements IClientTransaction {
 	}
 
 	@Override
-	public void remove(String key, DataCallBack callBack) throws UnavailableException, KeyNullException {
+	public void remove(String key, IDataCallBack callBack) throws UnavailableException, KeyNullException {
 		if (!StringHelper.checkIsNotNull(key)) {
 			throw new KeyNullException();
 		}
@@ -207,7 +207,7 @@ public class SimpleRaftClient implements IClientTransaction {
 	}
 
 	@Override
-	public void get(String key, DataCallBack callBack) throws UnavailableException, KeyNullException {
+	public void get(String key, IDataCallBack callBack) throws UnavailableException, KeyNullException {
 		if (!StringHelper.checkIsNotNull(key)) {
 			throw new KeyNullException();
 		}
