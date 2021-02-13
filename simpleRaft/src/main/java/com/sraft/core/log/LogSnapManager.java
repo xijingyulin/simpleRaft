@@ -77,20 +77,21 @@ public class LogSnapManager extends ALogSnapImpl {
 					appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
 				}
 				return appendResultEnum;
-			} else {
-				BaseLog baseLog = appendLogEntryMsg.getBaseLogList().get(0);
-				//如果是读请求，同样只需一致性检查
-				if (baseLog.getLogType() == LogData.LOG_GET) {
-					if (consistencyCheck(appendLogEntryMsg)) {
-						appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
-					} else if (isNullServer()) {
-						appendResultEnum = EnumAppendLogResult.LOG_NULL;
-					} else {
-						appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
-					}
-					return appendResultEnum;
-				}
-			}
+			} 
+//			else {
+//				BaseLog baseLog = appendLogEntryMsg.getBaseLogList().get(0);
+//				//如果是读请求，同样只需一致性检查
+//				if (baseLog.getLogType() == LogData.LOG_GET) {
+//					if (consistencyCheck(appendLogEntryMsg)) {
+//						appendResultEnum = EnumAppendLogResult.LOG_APPEND_SUCCESS;
+//					} else if (isNullServer()) {
+//						appendResultEnum = EnumAppendLogResult.LOG_NULL;
+//					} else {
+//						appendResultEnum = EnumAppendLogResult.LOG_CHECK_FALSE;
+//					}
+//					return appendResultEnum;
+//				}
+//			}
 
 			if (isFirstLog(appendLogEntryMsg)) {
 				// 追加的是第一条日志，但本地却已经有其它日志了，所以需要清空

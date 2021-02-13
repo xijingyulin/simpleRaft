@@ -25,20 +25,15 @@ public class ClientHeartbeatWorker extends Workder {
 	private static Logger LOG = LoggerFactory.getLogger(ClientHeartbeatWorker.class);
 
 	private ClientConnManager clientConnManager;
-	private RoleController roleController;
 
-	public ClientHeartbeatWorker() {
-
+	public ClientHeartbeatWorker(RoleController roleController) {
+		super(roleController);
 	}
 
 	public ClientHeartbeatWorker(ClientConnManager clientConnManager) {
+		super(null);
 		this.clientConnManager = clientConnManager;
-		setEnable(true);
-	}
-
-	public ClientHeartbeatWorker(RoleController roleController) {
-		this.roleController = roleController;
-		setEnable(true);
+		setChangeRole(false);
 	}
 
 	@Override
@@ -53,6 +48,7 @@ public class ClientHeartbeatWorker extends Workder {
 			ReplyClientHeartbeatMsg replyClientHeartbeatMsg = (ReplyClientHeartbeatMsg) params.get(1);
 			dealReplyClientHeartbeatMsg(replyClientHeartbeatMsg);
 		}
+		MSG_NOT_DEAL.decrementAndGet();
 	}
 
 	public void dealClientHeartbeatMsg(ChannelHandlerContext ctx, ClientHeartbeatMsg clientHeartbeatMsg) {
@@ -64,13 +60,7 @@ public class ClientHeartbeatWorker extends Workder {
 		replyClientHeartbeatMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		replyClientHeartbeatMsg.setSessionId(sessionId);
 		boolean isUpdate = roleController.updateSession(sessionId, receviceTime);
-		if (role == null) {
-			replyClientHeartbeatMsg.setResult(Msg.RETURN_STATUS_FALSE);
-			replyClientHeartbeatMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
-		} else if (role.isChangedRole()) {
-			replyClientHeartbeatMsg.setResult(Msg.RETURN_STATUS_FALSE);
-			replyClientHeartbeatMsg.setErrCode(Msg.ERR_CODE_ROLE_CHANGED);
-		} else if (role instanceof Follower) {
+		if (role instanceof Follower) {
 			replyClientHeartbeatMsg.setResult(Msg.RETURN_STATUS_FALSE);
 			replyClientHeartbeatMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
 		} else if (role instanceof Candidate) {

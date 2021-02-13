@@ -116,9 +116,9 @@ public class RoleController {
 		clientHeartbeatWorker = new ClientHeartbeatWorker(this);
 		clientActionWorkder = new ClientActionWorker(this);
 
-		heatBeatWorkder = new HeartbeatWorker();
-		appendLogWorkder = new AppendLogWorkder();
-		requestVoteWorker = new RequestVoteWorker();
+		heatBeatWorkder = new HeartbeatWorker(this);
+		appendLogWorkder = new AppendLogWorkder(this);
+		requestVoteWorker = new RequestVoteWorker(this);
 
 		FlowHeader.employ(LOGIN_WORKER, loginWorkder);
 		FlowHeader.employ(CLIENT_HEARTBEAT_WORKER, clientHeartbeatWorker);
@@ -376,9 +376,9 @@ public class RoleController {
 	 * 无论何时，都应该接收并响应客户端消息
 	 */
 	public void openClientWorker() {
-		loginWorkder.setEnable(true);
-		clientHeartbeatWorker.setEnable(true);
-		clientActionWorkder.setEnable(true);
+		loginWorkder.setChangeRole(false);
+		clientHeartbeatWorker.setChangeRole(false);
+		clientActionWorkder.setChangeRole(false);
 	}
 
 	public IStatement getiStatement() {

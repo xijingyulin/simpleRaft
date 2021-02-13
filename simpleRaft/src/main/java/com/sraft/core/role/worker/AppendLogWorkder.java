@@ -19,6 +19,7 @@ import com.sraft.core.role.Candidate;
 import com.sraft.core.role.FollowStatus;
 import com.sraft.core.role.Follower;
 import com.sraft.core.role.Leader;
+import com.sraft.core.role.RoleController;
 import com.sraft.enums.EnumAppendLogResult;
 import com.sraft.enums.EnumAppendSnapshotResult;
 import com.sraft.enums.EnumRole;
@@ -27,6 +28,10 @@ import io.netty.channel.ChannelHandlerContext;
 
 public class AppendLogWorkder extends Workder {
 	private static Logger LOG = LoggerFactory.getLogger(AppendLogWorkder.class);
+
+	public AppendLogWorkder(RoleController roleController) {
+		super(roleController);
+	}
 
 	@Override
 	public void doWork(Object object) {
@@ -46,6 +51,7 @@ public class AppendLogWorkder extends Workder {
 			ReplyAppendSnapshotMsg replyAppendSnapshotMsg = (ReplyAppendSnapshotMsg) params.get(1);
 			dealReplyAppendSnapshotMsg(replyAppendSnapshotMsg);
 		}
+		MSG_NOT_DEAL.decrementAndGet();
 	}
 
 	public void dealAppendLogEntryMsg(ChannelHandlerContext ctx, AppendLogEntryMsg appendLogEntryMsg) {

@@ -13,12 +13,17 @@ import com.sraft.core.message.ReplyRequestVoteMsg;
 import com.sraft.core.message.RequestVoteMsg;
 import com.sraft.core.role.Candidate;
 import com.sraft.core.role.Leader;
+import com.sraft.core.role.RoleController;
 import com.sraft.enums.EnumRole;
 
 import io.netty.channel.ChannelHandlerContext;
 
 public class RequestVoteWorker extends Workder {
 	private static Logger LOG = LoggerFactory.getLogger(RequestVoteWorker.class);
+
+	public RequestVoteWorker(RoleController roleController) {
+		super(roleController);
+	}
 
 	@Override
 	public void doWork(Object object) {
@@ -33,6 +38,7 @@ public class RequestVoteWorker extends Workder {
 			ReplyRequestVoteMsg replyRequestVoteMsg = (ReplyRequestVoteMsg) params.get(1);
 			dealReplyRequestVoteMsg(replyRequestVoteMsg);
 		}
+		MSG_NOT_DEAL.decrementAndGet();
 	}
 
 	/**

@@ -1,8 +1,10 @@
 package com.sraft.core.role.worker;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,14 +34,17 @@ public class ClientActionWorker extends Workder {
 	private ClientConnManager clientConnManager;
 	private RoleController roleController;
 
+	private static final int BATCH_ACTION_SIZE = 1000;
+
 	public ClientActionWorker(RoleController roleController) {
-		this.roleController = roleController;
-		setEnable(true);
+		super(roleController);
+		new Thread(new DealClientActionThread()).start();
 	}
 
 	public ClientActionWorker(ClientConnManager clientConnManager) {
+		super(null);
 		this.clientConnManager = clientConnManager;
-		setEnable(true);
+		setChangeRole(false);
 	}
 
 	@Override
@@ -48,89 +53,221 @@ public class ClientActionWorker extends Workder {
 		ChannelHandlerContext ctx = (ChannelHandlerContext) params.get(0);
 		Object msg = params.get(1);
 		if (msg instanceof ClientActionMsg) {
-			ClientActionMsg clientActionMsg = (ClientActionMsg) params.get(1);
-			dealClientActionMsg(ctx, clientActionMsg);
+			add2Queue(object);
 		} else if (msg instanceof ReplyClientActionMsg) {
 			ReplyClientActionMsg replyClientActionMsg = (ReplyClientActionMsg) params.get(1);
 			dealReplyClientActionMsg(replyClientActionMsg);
 		}
 	}
 
-	public void dealClientActionMsg(ChannelHandlerContext ctx, ClientActionMsg clientActionMsg) {
-		long sessionId = clientActionMsg.getSessionId();
-		long receviceTime = clientActionMsg.getReceviceTime();
-		boolean isUpdate = roleController.updateSession(sessionId, receviceTime);
-		ReplyClientActionMsg replyClientActionMsg = new ReplyClientActionMsg();
-		if (role == null) {
-			replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
-			replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
-		} else if (role.isChangedRole()) {
-			replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
-			replyClientActionMsg.setErrCode(Msg.ERR_CODE_ROLE_CHANGED);
-		} else if (role instanceof Follower) {
-			replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
-			replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
-		} else if (role instanceof Candidate) {
-			replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
-			replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_CANDIDATE);
-		} else if (role instanceof Leader) {
-			if (!isUpdate) {
-				replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
-				replyClientActionMsg.setErrCode(Msg.ERR_CODE_SESSION_TIMEOUT);
-			} else {
-				Leader leader = (Leader) role;
-				if (!leader.isAliveOverHalf()) {
-					replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
-					replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR);
-				} else {
-					LOG.info("接收到事务操作消息:{}", clientActionMsg.toString());
+	private LinkedBlockingQueue<Object> actionQueue = new LinkedBlockingQueue<Object>(BATCH_ACTION_SIZE);
 
-					if (leader.isRepeatTransaction(clientActionMsg)) {
-						LOG.info("已执行过这个操作,直接返回结果");
-						if (clientActionMsg.getActionType() == LogData.LOG_GET) {
-							replyClientActionMsg
-									.setValue(leader.getRoleController().getValue(clientActionMsg.getKey()));
+	public void add2Queue(Object object) {
+		actionQueue.add(object);
+	}
+
+	class DealClientActionThread implements Runnable {
+
+		@Override
+		public void run() {
+			List<Object> actionList = new ArrayList<Object>();
+			while (true) {
+				while (!actionQueue.isEmpty()) {
+					try {
+						actionList.add(actionQueue.take());
+						if (actionList.size() > BATCH_ACTION_SIZE) {
+							break;
 						}
-						replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
-					} else {
-						// 注意读操作，不需累计索引
-						BaseLog baseLog = leader.getBaseLog(clientActionMsg);
-						AppendTask appendTask = new AppendTask(baseLog);
-						synchronized (appendTask) {
-							LOG.info("提交任务:{}", appendTask.toString());
-							leader.submitAppendTask(appendTask);
-							try {
-								appendTask.wait();
-							} catch (InterruptedException e) {
-								e.printStackTrace();
-							}
-						}
-						if (appendTask.isOverHalfSuccess()) {
-							LOG.info("提交任务成功:{}", appendTask.toString());
-							// 提交状态机
-							leader.getRoleController().commit();
-							if (baseLog.getLogType() == LogData.LOG_GET) {
-								replyClientActionMsg.setValue(leader.getRoleController().getValue(baseLog.getKey()));
-							}
-							replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
-						} else {
-							LOG.info("提交任务失败:{}", appendTask.toString());
-							replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
-							replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOG_APPEND_FALSE);
-						}
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+						LOG.error(e.getMessage());
+					}
+				}
+				if (!actionList.isEmpty()) {
+					dealClientActionMsg(actionList);
+					MSG_NOT_DEAL.addAndGet(-actionList.size());
+					actionList.clear();
+				} else {
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+						LOG.error(e.getMessage());
 					}
 				}
 			}
 		}
-		replyClientActionMsg.setActionType(clientActionMsg.getActionType());
-		replyClientActionMsg.setMsgId(IdGenerateHelper.getMsgId());
-		replyClientActionMsg.setMsgType(Msg.TYPE_REPLY_CLIENT_ACTION);
-		replyClientActionMsg.setSessionId(sessionId);
-		replyClientActionMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
-		ctx.writeAndFlush(replyClientActionMsg);
+
+		private void dealClientActionMsg(List<Object> actionList) {
+			List<ChannelHandlerContext> clientChannelList = new ArrayList<ChannelHandlerContext>();
+			List<ReplyClientActionMsg> replyClientActionMsgList = new ArrayList<ReplyClientActionMsg>();
+			List<BaseLog> baseLogList = new ArrayList<BaseLog>();
+			for (Object object : actionList) {
+				List<Object> params = (List<Object>) object;
+				ChannelHandlerContext ctx = (ChannelHandlerContext) params.get(0);
+				ClientActionMsg clientActionMsg = (ClientActionMsg) params.get(1);
+
+				long sessionId = clientActionMsg.getSessionId();
+				long receviceTime = clientActionMsg.getReceviceTime();
+				boolean isUpdate = roleController.updateSession(sessionId, receviceTime);
+
+				ReplyClientActionMsg replyClientActionMsg = new ReplyClientActionMsg();
+				replyClientActionMsg.setActionType(clientActionMsg.getActionType());
+				replyClientActionMsg.setMsgId(IdGenerateHelper.getMsgId());
+				replyClientActionMsg.setMsgType(Msg.TYPE_REPLY_CLIENT_ACTION);
+				replyClientActionMsg.setSessionId(sessionId);
+
+				if (role instanceof Follower) {
+					replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+					replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
+				} else if (role instanceof Candidate) {
+					replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+					replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_CANDIDATE);
+				} else if (role instanceof Leader) {
+					if (!isUpdate) {
+						replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+						replyClientActionMsg.setErrCode(Msg.ERR_CODE_SESSION_TIMEOUT);
+					} else {
+						Leader leader = (Leader) role;
+						if (!leader.isAliveOverHalf()) {
+							replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+							replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR);
+						} else {
+							LOG.info("接收到事务操作消息:{}", clientActionMsg.toString());
+
+							if (leader.isRepeatTransaction(clientActionMsg)
+									|| clientActionMsg.getActionType() == LogData.LOG_GET) {
+								LOG.info("已执行过这个操作,直接返回结果");
+								if (clientActionMsg.getActionType() == LogData.LOG_GET) {
+									replyClientActionMsg
+											.setValue(leader.getRoleController().getValue(clientActionMsg.getKey()));
+								}
+								replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
+							} else {
+								baseLogList.add(leader.getBaseLog(clientActionMsg));
+								clientChannelList.add(ctx);
+								replyClientActionMsgList.add(replyClientActionMsg);
+								continue;
+							}
+						}
+					}
+				}
+				replyClientActionMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
+				ctx.writeAndFlush(replyClientActionMsg);
+			}
+
+			if (!baseLogList.isEmpty()) {
+				Leader leader = (Leader) role;
+				AppendTask appendTask = new AppendTask(baseLogList);
+				synchronized (appendTask) {
+					LOG.info("提交任务:{}", appendTask.toString());
+					leader.submitAppendTask(appendTask);
+					try {
+						appendTask.wait();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+				if (appendTask.isOverHalfSuccess()) {
+					LOG.info("提交任务成功:{}", appendTask.toString());
+					// 提交状态机
+					leader.getRoleController().commit();
+					reply(clientChannelList, replyClientActionMsgList, true);
+				} else {
+					reply(clientChannelList, replyClientActionMsgList, false);
+					LOG.info("提交任务失败:{}", appendTask.toString());
+				}
+			}
+		}
 	}
 
-	public void dealReplyClientActionMsg(ReplyClientActionMsg replyClientActionMsg) {
+	public void reply(List<ChannelHandlerContext> clientChannelList,
+			List<ReplyClientActionMsg> replyClientActionMsgList, boolean isSuccess) {
+		for (int i = 0; i < replyClientActionMsgList.size(); i++) {
+
+			ChannelHandlerContext ctx = clientChannelList.get(i);
+			ReplyClientActionMsg replyClientActionMsg = replyClientActionMsgList.get(i);
+			replyClientActionMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
+			if (isSuccess) {
+				replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
+			} else {
+				replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+				replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOG_APPEND_FALSE);
+			}
+			ctx.writeAndFlush(replyClientActionMsg);
+		}
+	}
+
+	//	private void dealClientActionMsg(ChannelHandlerContext ctx, ClientActionMsg clientActionMsg) {
+	//		long sessionId = clientActionMsg.getSessionId();
+	//		long receviceTime = clientActionMsg.getReceviceTime();
+	//		boolean isUpdate = roleController.updateSession(sessionId, receviceTime);
+	//		ReplyClientActionMsg replyClientActionMsg = new ReplyClientActionMsg();
+	//		replyClientActionMsg.setActionType(clientActionMsg.getActionType());
+	//		replyClientActionMsg.setMsgId(IdGenerateHelper.getMsgId());
+	//		replyClientActionMsg.setMsgType(Msg.TYPE_REPLY_CLIENT_ACTION);
+	//		replyClientActionMsg.setSessionId(sessionId);
+	//
+	//		if (role instanceof Follower) {
+	//			replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+	//			replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
+	//		} else if (role instanceof Candidate) {
+	//			replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+	//			replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_CANDIDATE);
+	//		} else if (role instanceof Leader) {
+	//			if (!isUpdate) {
+	//				replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+	//				replyClientActionMsg.setErrCode(Msg.ERR_CODE_SESSION_TIMEOUT);
+	//			} else {
+	//				Leader leader = (Leader) role;
+	//				if (!leader.isAliveOverHalf()) {
+	//					replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+	//					replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_LEADER_NO_MAJOR);
+	//				} else {
+	//					LOG.info("接收到事务操作消息:{}", clientActionMsg.toString());
+	//
+	//					if (leader.isRepeatTransaction(clientActionMsg)) {
+	//						LOG.info("已执行过这个操作,直接返回结果");
+	//						if (clientActionMsg.getActionType() == LogData.LOG_GET) {
+	//							replyClientActionMsg
+	//									.setValue(leader.getRoleController().getValue(clientActionMsg.getKey()));
+	//						}
+	//						replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
+	//					} else {
+	//						// 注意读操作，不需累计索引
+	//						BaseLog baseLog = leader.getBaseLog(clientActionMsg);
+	//						AppendTask appendTask = new AppendTask(baseLog);
+	//						synchronized (appendTask) {
+	//							LOG.info("提交任务:{}", appendTask.toString());
+	//							leader.submitAppendTask(appendTask);
+	//							try {
+	//								appendTask.wait();
+	//							} catch (InterruptedException e) {
+	//								e.printStackTrace();
+	//							}
+	//						}
+	//						if (appendTask.isOverHalfSuccess()) {
+	//							LOG.info("提交任务成功:{}", appendTask.toString());
+	//							// 提交状态机
+	//							leader.getRoleController().commit();
+	//							if (baseLog.getLogType() == LogData.LOG_GET) {
+	//								replyClientActionMsg.setValue(leader.getRoleController().getValue(baseLog.getKey()));
+	//							}
+	//							replyClientActionMsg.setResult(Msg.RETURN_STATUS_OK);
+	//						} else {
+	//							LOG.info("提交任务失败:{}", appendTask.toString());
+	//							replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
+	//							replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOG_APPEND_FALSE);
+	//						}
+	//					}
+	//				}
+	//			}
+	//		}
+	//		replyClientActionMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
+	//		ctx.writeAndFlush(replyClientActionMsg);
+	//	}
+
+	private void dealReplyClientActionMsg(ReplyClientActionMsg replyClientActionMsg) {
 		int result = replyClientActionMsg.getResult();
 		if (result == Msg.RETURN_STATUS_OK) {
 			clientConnManager.updateServiceStatus(EnumServiceStatus.USEFULL);

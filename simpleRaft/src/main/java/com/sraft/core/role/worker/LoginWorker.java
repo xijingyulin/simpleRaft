@@ -28,20 +28,15 @@ public class LoginWorker extends Workder {
 	private static Logger LOG = LoggerFactory.getLogger(LoginWorker.class);
 
 	private ClientConnManager clientConnManager;
-	private RoleController roleController;
 
-	public LoginWorker() {
-
+	public LoginWorker(RoleController roleController) {
+		super(roleController);
 	}
 
 	public LoginWorker(ClientConnManager clientConnManager) {
+		super(null);
 		this.clientConnManager = clientConnManager;
-		setEnable(true);
-	}
-
-	public LoginWorker(RoleController roleController) {
-		this.roleController = roleController;
-		setEnable(true);
+		setChangeRole(false);
 	}
 
 	@Override
@@ -56,6 +51,7 @@ public class LoginWorker extends Workder {
 			ReplyLoginMsg replyLoginMsg = (ReplyLoginMsg) params.get(1);
 			dealReplyLoginMsg(replyLoginMsg);
 		}
+		MSG_NOT_DEAL.decrementAndGet();
 	}
 
 	private void dealLoginMsg(ChannelHandlerContext ctx, LoginMsg loginMsg) {
@@ -67,13 +63,7 @@ public class LoginWorker extends Workder {
 		replyLoginMsg.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 		replyLoginMsg.setSessionId(sessionId);
 		boolean isUpdate = roleController.updateSession(sessionId, receviceTime);
-		if (role == null) {
-			replyLoginMsg.setResult(Msg.RETURN_STATUS_FALSE);
-			replyLoginMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
-		} else if (role.isChangedRole()) {
-			replyLoginMsg.setResult(Msg.RETURN_STATUS_FALSE);
-			replyLoginMsg.setErrCode(Msg.ERR_CODE_ROLE_CHANGED);
-		} else if (role instanceof Follower) {
+		if (role instanceof Follower) {
 			Follower follower = (Follower) role;
 			int leaderId = follower.getLeaderId();
 			if (leaderId != -1) {

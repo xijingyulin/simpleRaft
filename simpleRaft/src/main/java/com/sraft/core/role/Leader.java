@@ -171,26 +171,24 @@ public class Leader extends AbstractRoles implements ILeader {
 			appendTask.setTaskId(taskId);
 			appendTask.setAllAppendNum(connAddressList.size() + 1);
 			pendingTaskMap.put(taskId, appendTask);
-			BaseLog baseLog = appendTask.getBaseLog();
+			List<BaseLog> baseLogList = appendTask.getBaseLogList();
 			long prevLogIndex = roleController.getiLogSnap().getLastLogIndex();
 			long prevLogTerm = roleController.getiLogSnap().getLastLogTerm();
 			for (int i = -1; i < connAddressList.size(); i++) {
-				AppendLogEntryMsg emptyMsg = getEmptyLogMsg();
-				emptyMsg.setTaskId(taskId);
-				emptyMsg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_ORDINARY);
-				emptyMsg.setPrevLogIndex(prevLogIndex);
-				emptyMsg.setPrevLogTerm(prevLogTerm);
-				List<BaseLog> baseLogList = new ArrayList<BaseLog>();
-				baseLogList.add(baseLog);
-				emptyMsg.setBaseLogList(baseLogList);
+				AppendLogEntryMsg appendLogEntryMsg = getEmptyLogMsg();
+				appendLogEntryMsg.setTaskId(taskId);
+				appendLogEntryMsg.setAppendType(AppendLogEntryMsg.TYPE_APPEND_ORDINARY);
+				appendLogEntryMsg.setPrevLogIndex(prevLogIndex);
+				appendLogEntryMsg.setPrevLogTerm(prevLogTerm);
+				appendLogEntryMsg.setBaseLogList(baseLogList);
 				if (i == -1) {
 					// 先提交领导者自己的日志
-					appendLogEntryLocally(emptyMsg);
+					appendLogEntryLocally(appendLogEntryMsg);
 				} else {
 					int nodeId = connAddressList.get(i).getNodeId();
 					String appendWorker = getAppendWorkerCard(nodeId);
 					try {
-						FlowHeader.putProducts(appendWorker, emptyMsg);
+						FlowHeader.putProducts(appendWorker, appendLogEntryMsg);
 					} catch (NoFlowLineException e) {
 						e.printStackTrace();
 						LOG.error(e.getMessage(), e);
@@ -333,6 +331,7 @@ public class Leader extends AbstractRoles implements ILeader {
 			LOG.info("转换角色,关闭连接其它服务器...");
 			ConnManager.getInstance().closeAll();
 		}
+		//waitDealAllMsg();
 		roleController.changeRole(newRole);
 	}
 

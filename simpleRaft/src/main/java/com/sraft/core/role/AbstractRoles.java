@@ -100,22 +100,25 @@ public abstract class AbstractRoles extends Thread implements IRole {
 		roleController.getClientActionWorkder().setRole(role);
 
 		roleController.getHeatBeatWorkder().setRole(role);
-		roleController.getHeatBeatWorkder().setEnable(true);
+		roleController.getHeatBeatWorkder().setChangeRole(false);
 		roleController.getAppendLogWorkder().setRole(role);
-		roleController.getAppendLogWorkder().setEnable(true);
+		roleController.getAppendLogWorkder().setChangeRole(false);
 		roleController.getRequestVoteWorker().setRole(role);
-		roleController.getRequestVoteWorker().setEnable(true);
+		roleController.getRequestVoteWorker().setChangeRole(false);
 
 	}
 
 	public void disableWorker() {
-		roleController.getLoginWorkder().setRole(null);
-		roleController.getClientHeartbeatWorker().setRole(null);
-		roleController.getClientActionWorkder().setRole(null);
+		//		roleController.getLoginWorkder().setRole(null);
+		//		roleController.getClientHeartbeatWorker().setRole(null);
+		//		roleController.getClientActionWorkder().setRole(null);
 
-		roleController.getHeatBeatWorkder().setEnable(false);
-		roleController.getAppendLogWorkder().setEnable(false);
-		roleController.getRequestVoteWorker().setEnable(false);
+		roleController.getHeatBeatWorkder().setChangeRole(true);
+		roleController.getAppendLogWorkder().setChangeRole(true);
+		roleController.getRequestVoteWorker().setChangeRole(true);
+
+		//MSG_NOT_DEAL.decrementAndGet();
+		StringBuilder sb = new StringBuilder();
 
 	}
 
@@ -133,5 +136,24 @@ public abstract class AbstractRoles extends Thread implements IRole {
 
 	public int getSelfId() {
 		return selfId;
+	}
+
+	/**
+	 * 等待所在正在处理的消息处理完成
+	 */
+	public void waitDealAllMsg() {
+		while (true) {
+			try {
+				// 等待消息都被记录
+				Thread.sleep(10);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			if (roleController.getHeatBeatWorkder().getMSG_NOT_DEAL().get() == 0
+					&& roleController.getAppendLogWorkder().getMSG_NOT_DEAL().get() == 0
+					&& roleController.getRequestVoteWorker().getMSG_NOT_DEAL().get() == 0) {
+				break;
+			}
+		}
 	}
 }

@@ -14,12 +14,17 @@ import com.sraft.core.message.ReplyHeartbeatMsg;
 import com.sraft.core.role.Candidate;
 import com.sraft.core.role.Follower;
 import com.sraft.core.role.Leader;
+import com.sraft.core.role.RoleController;
 import com.sraft.enums.EnumRole;
 
 import io.netty.channel.ChannelHandlerContext;
 
 public class HeartbeatWorker extends Workder {
 	private static Logger LOG = LoggerFactory.getLogger(HeartbeatWorker.class);
+
+	public HeartbeatWorker(RoleController roleController) {
+		super(roleController);
+	}
 
 	@Override
 	public void doWork(Object object) {
@@ -33,6 +38,7 @@ public class HeartbeatWorker extends Workder {
 			ReplyHeartbeatMsg replyHeartbeatMsg = (ReplyHeartbeatMsg) params.get(1);
 			dealReplyHeartbeatMsg(replyHeartbeatMsg);
 		}
+		MSG_NOT_DEAL.decrementAndGet();
 	}
 
 	public void dealHeartbeatMsgMsg(ChannelHandlerContext ctx, HeartbeatMsg heartbeatMsg) {

@@ -1,5 +1,6 @@
 package com.sraft.core.role;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.sraft.core.message.BaseLog;
@@ -11,7 +12,7 @@ public class AppendTask {
 	 */
 	private long taskId;
 
-	private BaseLog baseLog;
+	private List<BaseLog> baseLogList;
 	/**
 	 * 总追加数
 	 */
@@ -25,16 +26,8 @@ public class AppendTask {
 	 */
 	private AtomicInteger failNum = new AtomicInteger(0);
 
-	public AppendTask(BaseLog baseLog) {
-		this.baseLog = baseLog;
-	}
-
-	public BaseLog getBaseLog() {
-		return baseLog;
-	}
-
-	public void setBaseLog(BaseLog baseLog) {
-		this.baseLog = baseLog;
+	public AppendTask(List<BaseLog> baseLogList) {
+		this.baseLogList = baseLogList;
 	}
 
 	public void increSuccessNum() {
@@ -78,8 +71,8 @@ public class AppendTask {
 		StringBuilder builder = new StringBuilder();
 		builder.append("taskId:");
 		builder.append(taskId);
-		builder.append(",baseLog:");
-		builder.append(baseLog);
+		builder.append(",baseLogList:");
+		builder.append(baseLogList);
 		builder.append(",allAppendNum:");
 		builder.append(allAppendNum);
 		builder.append(",successNum:");
@@ -87,5 +80,13 @@ public class AppendTask {
 		builder.append(",failNum:");
 		builder.append(failNum);
 		return builder.toString();
+	}
+
+	public List<BaseLog> getBaseLogList() {
+		return baseLogList;
+	}
+
+	public void setBaseLogList(List<BaseLog> baseLogList) {
+		this.baseLogList = baseLogList;
 	}
 }
