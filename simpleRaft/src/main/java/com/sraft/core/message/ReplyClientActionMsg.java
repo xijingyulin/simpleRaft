@@ -4,7 +4,7 @@ import org.msgpack.annotation.Message;
 
 @Message
 public class ReplyClientActionMsg extends ClientReply {
-
+	private long transactionId;
 	private int actionType;
 	private String value;
 
@@ -52,6 +52,14 @@ public class ReplyClientActionMsg extends ClientReply {
 		builder.append(",receviceTime:");
 		builder.append(receviceTime);
 		return builder.toString();
+	}
+
+	public long getTransactionId() {
+		return transactionId;
+	}
+
+	public void setTransactionId(long transactionId) {
+		this.transactionId = transactionId;
 	}
 
 }

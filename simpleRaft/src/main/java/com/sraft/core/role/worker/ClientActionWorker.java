@@ -1,5 +1,6 @@
 package com.sraft.core.role.worker;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -54,7 +55,12 @@ public class ClientActionWorker extends Workder {
 			add2Queue(object);
 		} else if (msg instanceof ReplyClientActionMsg) {
 			ReplyClientActionMsg replyClientActionMsg = (ReplyClientActionMsg) params.get(1);
-			dealReplyClientActionMsg(replyClientActionMsg);
+			try {
+				dealReplyClientActionMsg(replyClientActionMsg);
+			} catch (IOException e) {
+				e.printStackTrace();
+				LOG.error(e.getMessage());
+			}
 		}
 	}
 
@@ -114,7 +120,7 @@ public class ClientActionWorker extends Workder {
 				replyClientActionMsg.setMsgId(IdGenerateHelper.getMsgId());
 				replyClientActionMsg.setMsgType(Msg.TYPE_REPLY_CLIENT_ACTION);
 				replyClientActionMsg.setSessionId(sessionId);
-
+				replyClientActionMsg.setTransactionId(clientActionMsg.getTransactionId());
 				if (role instanceof Follower) {
 					replyClientActionMsg.setResult(Msg.RETURN_STATUS_FALSE);
 					replyClientActionMsg.setErrCode(Msg.ERR_CODE_LOGIN_FOLLOWER);
@@ -265,23 +271,33 @@ public class ClientActionWorker extends Workder {
 	//		ctx.writeAndFlush(replyClientActionMsg);
 	//	}
 
-	private void dealReplyClientActionMsg(ReplyClientActionMsg replyClientActionMsg) {
+	private void dealReplyClientActionMsg(ReplyClientActionMsg replyClientActionMsg) throws IOException {
 		int result = replyClientActionMsg.getResult();
-		if (result == Msg.RETURN_STATUS_OK) {
-			clientConnManager.updateServiceStatus(EnumServiceStatus.USEFULL);
-			clientConnManager.updateLastReceiveMsg(replyClientActionMsg);
+		clientConnManager.updateLastReceiveMsg(replyClientActionMsg);
 
-			BlockingQueue<Packet> pendingQueue = clientConnManager.getPendingQueue();
-			synchronized (pendingQueue) {
-				if (!pendingQueue.isEmpty()) {
-					Packet packet = pendingQueue.remove();
-					synchronized (packet) {
-						packet.setReplyMsg(replyClientActionMsg);
-						packet.notify();
+		BlockingQueue<Packet> pendingQueue = clientConnManager.getPendingQueue();
+		synchronized (pendingQueue) {
+			if (!pendingQueue.isEmpty()) {
+				Packet packet = pendingQueue.remove();
+				synchronized (packet) {
+					if (((ClientActionMsg) packet.getSendMsg()).getTransactionId() != replyClientActionMsg
+							.getTransactionId()) {
+						throw new IOException("接收到的消息的事务ID与从队列中取出的消息的事务ID不一致");
+					}
+					packet.setReplyMsg(replyClientActionMsg);
+					packet.notify();
+					if (packet.getCall() != null) {
+						clientConnManager.getCallBackQueue().add(packet);
+						synchronized (clientConnManager.getCallBackQueue()) {
+							clientConnManager.getCallBackQueue().notify();
+						}
 					}
 				}
 			}
+		}
 
+		if (result == Msg.RETURN_STATUS_OK) {
+			clientConnManager.updateServiceStatus(EnumServiceStatus.USEFULL);
 		} else {
 			int errCode = replyClientActionMsg.getErrCode();
 			switch (errCode) {

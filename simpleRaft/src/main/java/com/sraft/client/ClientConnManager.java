@@ -50,6 +50,11 @@ public class ClientConnManager {
 	 */
 	private BlockingQueue<Packet> pendingQueue = new LinkedBlockingQueue<Packet>();
 
+	/**
+	 * 接收到服务端回复后，如果该请求是异步回调方式，则先将packet放进队列中
+	 */
+	private BlockingQueue<Packet> callBackQueue = new LinkedBlockingQueue<Packet>();
+
 	public static final String CLIENT_ACTION_SENDER_WORKER = new String("CLIENT_ACTION_SENDER_WORKER");
 
 	public ClientConnManager(String address) throws Exception {
@@ -64,6 +69,8 @@ public class ClientConnManager {
 		sendLoginMsg();
 		LOG.info("设置客户端心跳超时");
 		startClientHeartbeat();
+		// 监控回调队列
+		monitorCallBack();
 	}
 
 	public void addSenderWorker() {
@@ -292,6 +299,46 @@ public class ClientConnManager {
 
 	public void setPendingQueue(BlockingQueue<Packet> pendingQueue) {
 		this.pendingQueue = pendingQueue;
+	}
+
+	public BlockingQueue<Packet> getCallBackQueue() {
+		return callBackQueue;
+	}
+
+	public void setCallBackQueue(BlockingQueue<Packet> callBackQueue) {
+		this.callBackQueue = callBackQueue;
+	}
+
+	public void monitorCallBack() {
+		new Thread(new DealCallBack()).start();
+	}
+
+	class DealCallBack implements Runnable {
+
+		@Override
+		public void run() {
+			while (true) {
+				synchronized (callBackQueue) {
+					if (callBackQueue.isEmpty()) {
+						try {
+							callBackQueue.wait();
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					} else {
+						try {
+							Packet packet = callBackQueue.take();
+							packet.getCall().call((ClientActionMsg) packet.getSendMsg(),
+									(ReplyClientActionMsg) packet.getReplyMsg());
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			}
+
+		}
+
 	}
 
 	//	public void close() {

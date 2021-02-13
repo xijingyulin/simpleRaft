@@ -45,7 +45,7 @@ public class SimpleRaftClient implements IClientTransaction {
 		if (!StringHelper.checkIsNotNull(value)) {
 			throw new ValueNullException();
 		}
-		Packet packet = getPacket(LogData.LOG_PUT, key, value);
+		Packet packet = getPacket(LogData.LOG_PUT, key, value, null);
 		return sendMsg(packet, LogData.LOG_PUT);
 
 	}
@@ -59,7 +59,7 @@ public class SimpleRaftClient implements IClientTransaction {
 		if (!StringHelper.checkIsNotNull(value)) {
 			throw new ValueNullException();
 		}
-		Packet packet = getPacket(LogData.LOG_UPDATE, key, value);
+		Packet packet = getPacket(LogData.LOG_UPDATE, key, value, null);
 		return sendMsg(packet, LogData.LOG_UPDATE);
 	}
 
@@ -69,7 +69,7 @@ public class SimpleRaftClient implements IClientTransaction {
 			throw new KeyNullException();
 		}
 
-		Packet packet = getPacket(LogData.LOG_REMOVE, key, "");
+		Packet packet = getPacket(LogData.LOG_REMOVE, key, "", null);
 		///////////
 		//		for (int i = 0; i < 10000; i++) {
 		//			sendMsg(packet, LogData.LOG_REMOVE);
@@ -84,11 +84,11 @@ public class SimpleRaftClient implements IClientTransaction {
 		if (!StringHelper.checkIsNotNull(key)) {
 			throw new KeyNullException();
 		}
-		Packet packet = getPacket(LogData.LOG_GET, key, "");
+		Packet packet = getPacket(LogData.LOG_GET, key, "", null);
 		return sendMsg(packet, LogData.LOG_GET);
 	}
 
-	private Packet getPacket(int actionType, String key, String value) {
+	private Packet getPacket(int actionType, String key, String value, DataCallBack callBack) {
 		Packet packet = new Packet();
 		ClientActionMsg clientActionMsg = new ClientActionMsg();
 		clientActionMsg.setActionType(actionType);
@@ -99,6 +99,7 @@ public class SimpleRaftClient implements IClientTransaction {
 		clientActionMsg.setSessionId(clientConnManager.getSessionId());
 		clientActionMsg.setTransactionId(IdGenerateHelper.getNextSessionId());
 		packet.setSendMsg(clientActionMsg);
+		packet.setCall(callBack);
 		switch (actionType) {
 		case LogData.LOG_PUT:
 			clientActionMsg.setValue(value);
@@ -163,7 +164,59 @@ public class SimpleRaftClient implements IClientTransaction {
 		return actionResult;
 	}
 
-	//	public void close() {
-	//		clientConnManager.close();
-	//	}
+	@Override
+	public void put(String key, String value, DataCallBack callBack)
+			throws UnavailableException, KeyNullException, ValueNullException {
+		if (!StringHelper.checkIsNotNull(key)) {
+			throw new KeyNullException();
+		}
+		if (!StringHelper.checkIsNotNull(value)) {
+			throw new ValueNullException();
+		}
+		Packet packet = getPacket(LogData.LOG_PUT, key, value, callBack);
+		sendMsgAsyn(packet);
+	}
+
+	@Override
+	public void update(String key, String value, DataCallBack callBack)
+			throws UnavailableException, KeyNullException, ValueNullException {
+		if (!StringHelper.checkIsNotNull(key)) {
+			throw new KeyNullException();
+		}
+		if (!StringHelper.checkIsNotNull(value)) {
+			throw new ValueNullException();
+		}
+		Packet packet = getPacket(LogData.LOG_UPDATE, key, value, callBack);
+		sendMsgAsyn(packet);
+	}
+
+	@Override
+	public void remove(String key, DataCallBack callBack) throws UnavailableException, KeyNullException {
+		if (!StringHelper.checkIsNotNull(key)) {
+			throw new KeyNullException();
+		}
+
+		Packet packet = getPacket(LogData.LOG_REMOVE, key, "", callBack);
+		///////////
+		//		for (int i = 0; i < 10000; i++) {
+		//			sendMsg(packet, LogData.LOG_REMOVE);
+		//		}	
+		//		return sendMsg(packet, LogData.LOG_REMOVE);
+		/////////////
+		sendMsgAsyn(packet);
+	}
+
+	@Override
+	public void get(String key, DataCallBack callBack) throws UnavailableException, KeyNullException {
+		if (!StringHelper.checkIsNotNull(key)) {
+			throw new KeyNullException();
+		}
+		Packet packet = getPacket(LogData.LOG_GET, key, "", callBack);
+		sendMsgAsyn(packet);
+	}
+
+	public void sendMsgAsyn(Packet packet) {
+		clientConnManager.isUseFullSyn();
+		clientConnManager.sendActionMsg(packet);
+	}
 }

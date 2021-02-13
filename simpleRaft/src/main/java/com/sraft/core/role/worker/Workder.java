@@ -130,6 +130,7 @@ public abstract class Workder implements IFlowWorker {
 			reply.setMsgId(IdGenerateHelper.getMsgId());
 			reply.setMsgType(Msg.TYPE_REPLY_CLIENT_ACTION);
 			reply.setSessionId(sessionId);
+			reply.setTransactionId(clientActionMsg.getTransactionId());
 			reply.setSendTime(DateHelper.formatDate2Long(new Date(), DateHelper.YYYYMMDDHHMMSSsss));
 			reply.setResult(Msg.RETURN_STATUS_FALSE);
 			reply.setErrCode(Msg.ERR_CODE_ROLE_CHANGED);

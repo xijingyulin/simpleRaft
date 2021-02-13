@@ -1,11 +1,14 @@
 package com.sraft.core.message;
 
+import com.sraft.client.DataCallBack;
+
 public class Packet {
 	// 领导者发送追加日志时，可用Map<事务ID，执行结果>,发送端进行wait，接收端syn，类型成功结果，过半则notify；并且删除该事务
 
 	private Msg sendMsg;
 	private Msg replyMsg;
 	private volatile boolean isFinish = false;
+	private DataCallBack call = null;
 
 	public Packet() {
 
@@ -43,6 +46,14 @@ public class Packet {
 
 	public void setFinish(boolean isFinish) {
 		this.isFinish = isFinish;
+	}
+
+	public DataCallBack getCall() {
+		return call;
+	}
+
+	public void setCall(DataCallBack call) {
+		this.call = call;
 	}
 
 }
