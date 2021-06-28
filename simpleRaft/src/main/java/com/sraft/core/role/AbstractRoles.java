@@ -116,10 +116,6 @@ public abstract class AbstractRoles extends Thread implements IRole {
 		roleController.getHeatBeatWorkder().setChangeRole(true);
 		roleController.getAppendLogWorkder().setChangeRole(true);
 		roleController.getRequestVoteWorker().setChangeRole(true);
-
-		//MSG_NOT_DEAL.decrementAndGet();
-		StringBuilder sb = new StringBuilder();
-
 	}
 
 	public ServerMsg getHeartbeatMsg() {
